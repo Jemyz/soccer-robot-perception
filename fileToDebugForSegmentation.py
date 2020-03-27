@@ -212,10 +212,10 @@ class CudaVisionDataset(Dataset):
                 target_transform = [transforms.Normalize(mean=[0.5],
                                          std=[0.5])]
                 
-            
-            trnfm_target= transformations(target_transform)
-            target_img  = trnfm_target(target_img)
-                #target_img = transforms.ToTensor(target_img)
+            else:    
+                trnfm_target= transformations(target_transform)
+                target_img  = trnfm_target(target_img)
+               
             #print(target_img.shape)
         return input_img,target_img
 
@@ -453,7 +453,7 @@ def train():
         targets_m= torch.squeeze(targets)
         visualiseSegmented(targets_m[1],iter)
         loss = criterionSegmented(segmented, targets_m.long())
-        #showImagesWithTargets_Segmentation(images[0],targets[0])
+        
           # Getting gradients w.r.t. parameters
         loss.backward()
 
@@ -476,7 +476,7 @@ def train():
                         targets = targets.to(avDev)
 
                   # Forward pass only to get logits/output
-                #print(targets[0][0])
+                
                     segmented,detected = model(images)
 
 
