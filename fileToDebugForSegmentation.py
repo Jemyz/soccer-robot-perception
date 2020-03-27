@@ -366,6 +366,7 @@ class soccerSegment(nn.ModuleList):
                      self.deconvs[i - 1](self.relu(self.bns[i](skip_links[i])))),
                     1)
         seg = self.conv_seg(skip_links[i])
+        seg = nn.functional.softmax(seg)
         det = self.conv_det(skip_links[i])
         return seg, det
 
@@ -447,7 +448,7 @@ def train():
                 targets = targets.to(avDev)
           
           # Forward pass to get output
-        detected,segmented = model(images)
+        segmented,detected = model(images)
         
         targets_m= torch.squeeze(targets)
         visualiseSegmented(targets_m[1],iter)
@@ -476,7 +477,7 @@ def train():
 
                   # Forward pass only to get logits/output
                 #print(targets[0][0])
-                    detected,segmented = model(images)
+                    segmented,detected = model(images)
 
 
                   # Total number of labels
