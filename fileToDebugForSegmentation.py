@@ -19,7 +19,6 @@ from hyperopt import fmin, tpe, hp
 import time
 import copy
 import os
-import webcolors
 from PIL import Image
 from torchvision.utils import save_image
 
@@ -53,28 +52,15 @@ torch.backends.cudnn.deterministic=True
 
 # # Utility for Displaying Images, Error Curve
 
-# In[129]:
-
-
-def showImagesWithTargets(img,targets):
-    img = img / 2 + 0.5     # unnormalize
-    img = img.numpy()
-    plt.imshow(img.transpose((1,2,0)))
-    plt.show()
-    targets=targets.numpy()
-    plt.imshow(targets.transpose((1,2,0)))
-    plt.show()
 
 
 # In[149]:
 
 
-def showImagesWithTargets_Segmentation(img,targets):
+def showImages(img):
     img = img / 2 + 0.5     # unnormalize
     img = img.numpy()
     plt.imshow(img.transpose((1,2,0)))
-    plt.show()
-    targets=targets.numpy()
     plt.show()
 
 
@@ -113,15 +99,6 @@ def visualiseSegmentedTarget(target,iter):
     plt.imshow(segImage)
     plt.show()
 
-# In[131]:
-
-
-def plot_error_curve(errors):
-  plt.suptitle('Learning Curve', fontsize=20)
-  plt.xlabel('Iterations', fontsize=18)
-  plt.ylabel('Classification Error', fontsize=16)
-  plt.plot(np.array(errors))
-
 
 # # Load Data Functions
 
@@ -130,45 +107,6 @@ def plot_error_curve(errors):
 
 def transformations(listTransforms):
     return transforms.Compose(listTransforms)
-
-
-# In[133]:
-
-
-def get_colour_name(rgb_triplet):
-    min_colours = {}
-    for key, name in webcolors.CSS21_HEX_TO_NAMES.items():
-        r_c, g_c, b_c = webcolors.hex_to_rgb(key)
-        rd = (r_c - rgb_triplet[0]) ** 2
-        gd = (g_c - rgb_triplet[1]) ** 2
-        bd = (b_c - rgb_triplet[2]) ** 2
-        min_colours[(rd + gd + bd)] = name
-    return min_colours[min(min_colours.keys())]
-
-
-# In[134]:
-
-
-def get_labels(images):
-    size = images.shape
-    targets = np.empty([size[0],size[2],size[3]]).astype(int)
-    targets.fill(2)
-    for i in range(size[0]):
-        img = images[i].numpy().transpose((1,2,0))
-        indices = np.where((img[:,:,0]==0) & (img[:,:,1]==0) & (img[:,:,2]==0))
-        coordinates = [indices[0],indices[1]]
-        targets[i,coordinates] = 0
-        indices = np.where((img[:,:,0]==128) & (img[:,:,1]==128) & (img[:,:,2]==0))
-        coordinates = [indices[0],indices[1]]
-        targets[i,coordinates] = 1
-        indices = np.where((img[:,:,0]==0) & (img[:,:,1]==128) & (img[:,:,2]==0))
-        coordinates = [indices[0],indices[1]]
-        targets[i,coordinates] = 2
-    return targets
-        
-
-
-# In[135]:
 
 
 class CudaVisionDataset(Dataset):
@@ -254,7 +192,7 @@ def read_files(img_dir_path):
 lr = 0.001
 batchSize = 20
 epoch = 300
-tv_weight = 0.2
+
 
 
 # # Load Data And Make Iterable
@@ -279,11 +217,6 @@ class CudaVisionDataLoader:
 
 # In[140]:
 
-
-#listTransforms = [transforms.RandomHorizontalFlip(0.5),
- #       transforms.ToTensor(),
-  #      transforms.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))]
-#transforms(listTransforms)
 data = CudaVisionDataLoader()
 parentDir = './small_data'
 dirDetectionDataset = os.path.join(parentDir,'detection')
@@ -300,7 +233,7 @@ test_loader_segmentation = data.__call__(os.path.join(dirSegmentationDataset,'te
 dataiter_detection = train_loader_detection.__iter__()
 
 dataiter_segmentation = train_loader_segmentation.__iter__()
-images, targets = dataiter_segmentation.next()
+
 
 
 # # Model Definition
@@ -380,13 +313,6 @@ class soccerSegment(nn.ModuleList):
 
 
 
-
-
-# # Training Cycle
-
-# In[143]:
-
-
 #Metrics 
 
 def segmentationAccuracy(segmented,targets):
@@ -401,27 +327,6 @@ def segmentationAccuracy(segmented,targets):
     
 
 
-# In[144]:
-
-
-class TVLoss(nn.Module):
-    def __init__(self,TVLoss_weight=1):
-        super(TVLoss,self).__init__()
-        self.TVLoss_weight = TVLoss_weight
-
-    def forward(self,x):
-        batch_size = x.size()[0]
-        h_x = x.size()[2]
-        w_x = x.size()[3]
-        count_h = self._tensor_size(x[:,:,1:,:])
-        count_w = self._tensor_size(x[:,:,:,1:])
-        h_tv = torch.pow((x[:,:,1:,:]-x[:,:,:h_x-1,:]),2).sum()
-        w_tv = torch.pow((x[:,:,:,1:]-x[:,:,:,:w_x-1]),2).sum()
-        return self.TVLoss_weight*2*(h_tv/count_h+w_tv/count_w)/batch_size
-
-    def _tensor_size(self,t):
-        return t.size()[1]*t.size()[2]*t.size()[3]
-
 
 # In[155]:
 
@@ -434,7 +339,6 @@ def train():
     #if torch.cuda.is_available():
     #    model.cuda()
     iter = 0
-    criterionDetection = nn.MSELoss()
     criterionSegmented = nn.NLLLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr = lr)
     
