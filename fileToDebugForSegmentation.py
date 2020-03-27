@@ -82,22 +82,7 @@ def visualiseSegmented(segmentedImage,iter):
     plt.savefig('./outputs/segmented/img[' + str(iter) + '].png')
     plt.show()
 
-def visualiseSegmentedTarget(target,iter):
-    colorMap = [[0,0,0],[255,255,255],[0,255,0]]
-    size = target.size()
-    segImage = np.empty([3,size[0],size[1]])
-    values = torch.unique(target)
-    for i in range(size[0]):
-        for j in range(size[1]):
-            label = np.argwhere(values == target[i][j]) 
-            if label >= 3:
-                label =2
-            color = colorMap(label)
-            for k in range(3):
-                segImage[k,i,j] = color[k]
-    segImage = segImage.transpose((1,2,0))
-    plt.imshow(segImage)
-    plt.show()
+
 
 
 # # Load Data Functions
