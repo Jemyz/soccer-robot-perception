@@ -253,7 +253,7 @@ def read_files(img_dir_path):
 
 lr = 0.001
 batchSize = 20
-epoch = 50
+epoch = 300
 tv_weight = 0.2
 
 
@@ -314,6 +314,7 @@ class ResNet18(nn.Module):
         self.features = nn.Sequential(*list(original_model.children())[:-2])
         self.outputs_indices = [0] + outputs_indices
         print(self.outputs_indices)
+        self.freeze()
 
     def forward(self, x):
         out = []
@@ -322,7 +323,11 @@ class ResNet18(nn.Module):
             x = self.features[self.outputs_indices[i]:self.outputs_indices[i + 1]](x)
             out.append(x)
         return out
-
+    def freeze(self):
+        # Freezes the weights of the entire encoder
+        for child in self.children():
+            for param in child.parameters():
+                param.requires_grad = False
 
 class soccerSegment(nn.ModuleList):
     def __init__(self, resnet18, outputs_indices, skips_arch, deconvs_arch, bn_arch, last_layer_arch):
@@ -451,7 +456,7 @@ def train():
         segmented,detected = model(images)
         
         targets_m= torch.squeeze(targets)
-        visualiseSegmented(targets_m[1],iter)
+        # visualiseSegmented(targets_m[1],iter)
         loss = criterionSegmented(segmented, targets_m.long())
         
           # Getting gradients w.r.t. parameters
