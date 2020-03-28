@@ -3,13 +3,11 @@
 
 # # Import Modules
 
-# In[126]:
 
 import torch 
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as transforms
-import torchvision.datasets as dsets
 import random
 import numpy as np
 import torchvision
@@ -34,7 +32,7 @@ if torch.cuda.is_available:
 else:
   avDev = torch.device("cpu")
 print(avDev)
-avDev = "cpu"
+
 
 
 # # Set Seed
@@ -121,7 +119,6 @@ class CudaVisionDataset(Dataset):
                 target_img1  = trnfm_target(target_img)
                 target_img_temp = torch.squeeze(target_img1)
                 target_img = torch.ones([160,120], dtype=torch.float64)
-                values = torch.unique(target_img_temp)
                 values= torch.tensor([0.0000,1.0,2.0,3.0])
                 target_img_temp = target_img_temp *255
                 index = (target_img_temp == values[0]).nonzero()
@@ -132,9 +129,6 @@ class CudaVisionDataset(Dataset):
                 target_img[index[:,0],index[:,1]] =1
                 index = (target_img_temp == values[3]).nonzero()
                 target_img[index[:,0],index[:,1]] =2
-                target_transform = [transforms.Normalize(mean=[0.5],
-                                         std=[0.5])]
-                
             else:    
                 trnfm_target= transformations(target_transform)
                 target_img  = trnfm_target(target_img)
@@ -174,9 +168,9 @@ def read_files(img_dir_path):
 
 
 
-lr = 0.001
+lr = 0.01
 batchSize = 20
-epoch = 300
+epoch = 200
 
 
 
@@ -185,10 +179,10 @@ epoch = 300
 # In[138]:
 
 
-listTransforms_train = [transforms.ToTensor(),transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                         std=[0.229, 0.224, 0.225])]
-listTransforms_test = [transforms.ToTensor(),transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                         std=[0.229, 0.224, 0.225])]
+listTransforms_train = [transforms.ToTensor(),transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                         std=[0.5, 0.5, 0.5])]
+listTransforms_test = [transforms.ToTensor(),transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                         std=[0.5, 0.5, 0.5])]
 
 # In[139]:
 
@@ -204,26 +198,10 @@ class CudaVisionDataLoader:
 
 data = CudaVisionDataLoader()
 parentDir = './small_data'
-dirDetectionDataset = os.path.join(parentDir,'detection')
 dirSegmentationDataset = os.path.join(parentDir,'segmentation')
-train_loader_detection = data.__call__(os.path.join(dirDetectionDataset,'train'),"detection",listTransforms_train,batchSize)
-test_loader_detection = data.__call__(os.path.join(dirDetectionDataset,'test'),"detection",listTransforms_test,batchSize)
 train_loader_segmentation = data.__call__(os.path.join(dirSegmentationDataset,'train'),"segmentation",listTransforms_train,batchSize)
 test_loader_segmentation = data.__call__(os.path.join(dirSegmentationDataset,'test'),"segmentation",listTransforms_test,batchSize)
-
-
-# In[141]:
-
-
-dataiter_detection = train_loader_detection.__iter__()
-
 dataiter_segmentation = train_loader_segmentation.__iter__()
-
-
-
-# # Model Definition
-
-# In[142]:
 
 
 class ResNet18(nn.Module):
@@ -246,6 +224,29 @@ class ResNet18(nn.Module):
         for child in self.children():
             for param in child.parameters():
                 param.requires_grad = False
+    def unfreeze(self):
+        # Unfreezes the weights of the encoder
+        for child in self.children():
+            for param in child.parameters():
+                param.requires_grad = True
+                
+class LocationAwareConv2d(torch.nn.Conv2d):
+    def __init__(self,gradient,w,h,in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True):
+        super().__init__(in_channels, out_channels, kernel_size, stride=stride, padding=padding, dilation=dilation, groups=groups, bias=bias)
+        self.locationBias=torch.nn.Parameter(torch.zeros(w,h,3))
+        self.locationEncode=torch.autograd.Variable(torch.ones(w,h,3))
+        if gradient:
+            for i in range(w):
+                self.locationEncode[i,:,1]=(i/float(w-1))
+            for i in range(h):
+                self.locationEncode[:,i,0] = (i/float(h-1))
+    def forward(self,inputs):
+        if self.locationBias.device != inputs.device:
+            self.locationBias=self.locationBias.to(inputs.get_device())
+        if self.locationEncode.device != inputs.device:
+            self.locationEncode=self.locationEncode.to(inputs.get_device())
+        b=self.locationBias*self.locationEncode
+        return super().forward(inputs)+b[:,:,0]+b[:,:,1]+b[:,:,2]
 
 class soccerSegment(nn.ModuleList):
     def __init__(self, resnet18, outputs_indices, skips_arch, deconvs_arch, bn_arch, last_layer_arch):
@@ -270,8 +271,8 @@ class soccerSegment(nn.ModuleList):
              reversed(range(len(bn_arch)))])
         self.relu = nn.ReLU()
 
-        self.conv_det = nn.Conv2d(last_layer_arch, 3, kernel_size=1, stride=1, padding=0)
-        self.conv_seg = nn.Conv2d(last_layer_arch, 3, kernel_size=1, stride=1, padding=0)
+        self.conv_det = LocationAwareConv2d(True,160,120,last_layer_arch, 3,kernel_size=1, stride=1, padding=0)
+        self.conv_seg = LocationAwareConv2d(True,160,120,last_layer_arch,3, kernel_size=1, stride=1, padding=0)
 
     def forward(self, x):
         skip_links = self.resnet18(x)
@@ -289,7 +290,6 @@ class soccerSegment(nn.ModuleList):
                      self.deconvs[i - 1](self.relu(self.bns[i](skip_links[i])))),
                     1)
         seg = self.conv_seg(skip_links[i])
-        seg = nn.functional.softmax(seg)
         det = self.conv_det(skip_links[i])
         return seg, det
 
@@ -321,78 +321,73 @@ def train():
     import torchvision.models as models
     resnet18  = models.resnet18(pretrained=True)
     model = soccerSegment(resnet18,[5,6,7,8],[64, 128, 256, 256, 0],[512, 256, 256, 128],[512, 512, 256],256)
-    #if torch.cuda.is_available():
-    #    model.cuda()
+    if torch.cuda.is_available():
+        model.cuda()
+    
     iter = 0
-    criterionSegmented = nn.NLLLoss()
+    
+    criterionSegmented = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr = lr)
+    optimizer.zero_grad()
     
     for num in range(epoch):
-        
-        try:
-            images,targets = dataiter_segmentation.next()
-            if torch.cuda.is_available():
-                images = images.to(avDev)
-                targets = targets.to(avDev)
-        except:
-            dataiter_segmentation = train_loader_segmentation.__iter__()
-            images,targets = dataiter_segmentation.next()
-            if torch.cuda.is_available():
-                images = images.to(avDev)
-                targets = targets.to(avDev)
-          
-          # Forward pass to get output
-        segmented,detected = model(images)
-        
-        targets_m= torch.squeeze(targets)
-        # visualiseSegmented(targets_m[1],iter)
-        loss = criterionSegmented(segmented, targets_m.long())
+        if(num>35):
+            model.resnet18.unfreeze()
+        else:
+            model.resnet18.freeze()
+        flagToRun = 1
+        dataiter_segmentation = train_loader_segmentation.__iter__()
+        while(flagToRun):
+           try:
+               images,targets = dataiter_segmentation.next()
+               if torch.cuda.is_available():
+                   images = images.to(avDev)
+                   targets = targets.to(avDev)
+               segmented,detected = model(images)
+               loss = criterionSegmented(segmented, targets.long())
         
           # Getting gradients w.r.t. parameters
-        loss.backward()
+               loss.backward()
 
           # Updating parameters
-        optimizer.step()
-        iter += 1
-        losses =0
-        if iter % 1 == 0:
-              # Iterate through test dataset
-          
-          
-            for images, targets in test_loader_segmentation:
+               optimizer.step()
+           except:
+               flagToRun=0
+               iter += 1
+               losses =0
+               if iter % 1 == 0:
+              # Iterate through test dataset      
+                   for images, targets in test_loader_segmentation:
                   #######################
                   #  USE GPU FOR MODEL  #
                   #######################
-                model.eval()
-                with torch.no_grad():
-                    if torch.cuda.is_available():
-                        images = images.to(avDev)
-                        targets = targets.to(avDev)
+                      model.eval()
+                      with torch.no_grad():
+                          if torch.cuda.is_available():
+                              images = images.to(avDev)
+                              targets = targets.to(avDev)
 
                   # Forward pass only to get logits/output
                 
-                    segmented,detected = model(images)
+                          segmented,detected = model(images)
 
 
                   # Total number of labels
-                    targets_m= torch.squeeze(targets)
-                    loss=criterionSegmented(segmented, targets_m.long())
-                    losses = losses+loss.item()    
+                          loss=criterionSegmented(segmented, targets.long())
+                          losses = losses+loss.item()    
             
               # Print Loss
-                    print('Loss Segmentation: {}.', loss.item())
-                    segmentedLabels=torch.argmax(segmented,dim=1)
-                    accuracy =segmentationAccuracy(segmentedLabels.long(),targets_m.long())
-                    print('Segmentation Accuracy: {}.',accuracy)
+                          print('Loss Segmentation: {}.', loss.item())
+                          segmentedLabels=torch.argmax(segmented,dim=1)
+                          accuracy =segmentationAccuracy(segmentedLabels.long(),targets.long())
+                          print('Segmentation Accuracy: {}.',accuracy)
             #Save some images to check
-                    #visualiseSegmented(targets_m[0],iter)
-                    visualiseSegmented(segmentedLabels[1],iter)
+                    #visualiseSegmented(targets_m[1],iter)
+                          visualiseSegmented(segmentedLabels[1],iter)
             
 
 
 # In[156]:
-
-
 train()
 
 
