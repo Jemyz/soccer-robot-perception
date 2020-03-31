@@ -32,7 +32,7 @@ if torch.cuda.is_available:
 else:
   avDev = torch.device("cpu")
 print(avDev)
-avDev = "cpu"
+avDev="cpu"
 
 
 # # Set Seed
@@ -55,12 +55,12 @@ torch.backends.cudnn.deterministic=True
 # In[149]:
 
 
-def showImages(img,iter,fileName):
+def showImages(img,iter):
     img = img / 2 + 0.5     # unnormalize
     img = img.numpy()
     img = img.transpose((1,2,0))
     plt.imshow(img)
-    plt.savefig('./outputs/segmented/img_input '+fileName+'[' + str(iter) + '].png')
+    plt.savefig('./outputs/segmented/img_input [' + str(iter) + '].png')
     plt.show()
 
 
@@ -68,7 +68,7 @@ def showImages(img,iter,fileName):
 
 
 #Visualise segmented output
-def visualiseSegmented(segmentedImage,iter,stringName,fileName):
+def visualiseSegmented(segmentedImage,iter,stringName):
     colorMap = [[0,0,0],[255,255,255],[0,255,0]]
     size = segmentedImage.size()
     segImage = np.empty([3,size[0],size[1]])
@@ -79,7 +79,7 @@ def visualiseSegmented(segmentedImage,iter,stringName,fileName):
                 segImage[k,i,j] = color[k]
     segImage = segImage.transpose((1,2,0))
     plt.imshow(segImage)
-    plt.savefig('./outputs/segmented/img_'+ stringName+"_"+ fileName+'[' + str(iter) + '].png')
+    plt.savefig('./outputs/segmented/img_'+ stringName+'[' + str(iter) + '].png')
     plt.show()
 
 
@@ -105,13 +105,13 @@ class CudaVisionDataset(Dataset):
     def __getitem__(self, index):
         
         input_img = Image.open(self.img_paths[index])
-        iname = os.path.basename(self.img_paths[index])
+        
         #print(input_img.size)
         #showImages(input_img)
         input_img = transforms.functional.resize(input_img,(480,640))
         #showImages(input_img)
         target_img = Image.open(self.target_paths[index])
-        oname = os.path.basename(self.target_paths[index])
+        
         target_img = transforms.functional.resize(target_img,(120,160))
         if self.transform != None:
             
@@ -139,8 +139,7 @@ class CudaVisionDataset(Dataset):
                 target_img  = trnfm_target(target_img)
                
             #print(target_img.shape)
-        return input_img,target_img,iname,oname
-
+        return input_img,target_img
     def __len__(self):
         return len(self.target_paths)
 
@@ -207,9 +206,9 @@ data = CudaVisionDataLoader()
 parentDir = './small_data'
 dirSegmentationDataset = os.path.join(parentDir,'segmentation')
 train_loader_segmentation = data.__call__(os.path.join(dirSegmentationDataset,'train'),"segmentation",listTransforms_train,batchSize)
+validate_loader_segmentation = data.__call__(os.path.join(dirSegmentationDataset,'validate'),"segmentation",listTransforms_test,batchSize)
 test_loader_segmentation = data.__call__(os.path.join(dirSegmentationDataset,'test'),"segmentation",listTransforms_test,batchSize)
 dataiter_segmentation = train_loader_segmentation.__iter__()
-
 
 class ResNet18(nn.Module):
     def __init__(self, original_model, outputs_indices):
@@ -289,73 +288,6 @@ class soccerSegment(nn.ModuleList):
         seg = self.conv_seg(skip_links[i])
         det = self.conv_det(skip_links[i])
         return seg, det
-"""
-class LocationAwareConv2d(torch.nn.Conv2d):
-    def __init__(self,gradient,w,h,in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True):
-        super().__init__(in_channels, out_channels, kernel_size, stride=stride, padding=padding, dilation=dilation, groups=groups, bias=bias)
-        self.locationBias=torch.nn.Parameter(torch.zeros(w,h,3))
-        self.locationEncode=torch.autograd.Variable(torch.ones(w,h,3))
-        if gradient:
-            for i in range(w):
-                self.locationEncode[i,:,1]=(i/float(w-1))
-            for i in range(h):
-                self.locationEncode[:,i,0] = (i/float(h-1))
-    def forward(self,inputs):
-        if self.locationBias.device != inputs.device:
-            self.locationBias=self.locationBias.to(inputs.get_device())
-        if self.locationEncode.device != inputs.device:
-            self.locationEncode=self.locationEncode.to(inputs.get_device())
-        b=self.locationBias*self.locationEncode
-        return super().forward(inputs)+b[:,:,0]+b[:,:,1]+b[:,:,2]
-
-class soccerSegment(nn.ModuleList):
-    def __init__(self, resnet18):
-        super(soccerSegment, self).__init__()
-        self.resnet18 =resnet18
-        #self.layer4 = nn.Sequential(*list(resnet18.children())[:-2])
-        self.preconv = nn.Conv2d(3,64,kernel_size=7,stride =2,padding=3)
-        self.prebatch = nn.BatchNorm2d(64)
-        self.pool = nn.MaxPool2d(kernel_size=1,stride=2,padding=0)
-        self.relu = nn.ReLU()
-        self.deconv1_2 = nn.ConvTranspose2d(512,256,kernel_size=2,stride=2,padding=0)
-        #self.deconv2_3 =  nn.ConvTranspose2d(256,256,kernel_size=2,stride=2,padding=0)
-        self.deconv3 = nn.ConvTranspose2d(512,128,kernel_size=2,stride=2,padding=0)
-        self.batch1_2 = nn.BatchNorm2d(512)
-        self.batch3 = nn.BatchNorm2d(256)
-        self.conv1 = nn.Conv2d(64,128,kernel_size=1, stride=1, padding=0)
-        self.conv2 = nn.Conv2d(128,256,kernel_size=1, stride=1, padding=0)
-        self.conv3 = nn.Conv2d(256,256,kernel_size=1, stride=1, padding=0)
-        self.conv_det = LocationAwareConv2d(True,120,160,256, 3,kernel_size=1, stride=1, padding=0)
-        self.conv_seg = LocationAwareConv2d(True,120,160,256,3, kernel_size=1, stride=1, padding=0)
-        
-    def forward(self,x):
-        print(x.shape)
-        l1 = self.resnet18.layer1(self.pool(self.prebatch(self.preconv(x))))
-        print(l1.shape)
-        l2 = self.resnet18.layer2(l1)
-        print(l2.shape)
-        l3 = self.resnet18.layer3(l2)
-        l4 = self.relu(self.resnet18.layer4(l3))
-        #l2=self.conv2(l2)
-        d1 = self.deconv1_2(l4)
-        con1 = self.relu(self.batch1_2(torch.cat((d1,self.conv3(l3)),1)))
-        d2 = self.deconv1_2(con1)
-        print(d2.shape)
-        con2 = self.relu(self.batch1_2(torch.cat((d2,self.conv2(l2)),1)))
-        d3 = self.deconv3(con2)
-        con3 = self.relu(self.batch3(torch.cat((d3,self.conv1(l1)),1)))
-        seg = self.conv_seg(con3)
-        det = self.conv_det(con3)
-        return seg, det
-        
-  """      
-        
-
-# In[ ]:
-
-
-
-#Metrics 
 
 def segmentationAccuracy(segmented,targets):
     sizes = segmented.size()
@@ -368,7 +300,7 @@ def segmentationAccuracy(segmented,targets):
     return accuracy
     
 class TVLoss(nn.Module):
-    def __init__(self,TVLoss_weight=0.0002):
+    def __init__(self,TVLoss_weight=0.00001):
         super(TVLoss,self).__init__()
         self.TVLoss_weight = TVLoss_weight
 
@@ -379,9 +311,9 @@ class TVLoss(nn.Module):
         count_h = self._tensor_size(x[:,:,1:,:])
         count_w = self._tensor_size(x[:,:,:,1:])
         #Ignored line segmentation in calculations
-        h_tv = torch.pow(torch.abs(x[:,0,1:,:]-x[:,0,:h_x-1,:]),2).sum()+torch.pow(torch.abs(x[:,2,1:,:]-x[:,2,:h_x-1,:]),2).sum()
-        w_tv = torch.pow(torch.abs(x[:,0,:,1:]-x[:,0,:,:w_x-1]),2).sum()+torch.pow(torch.abs(x[:,2,:,1:]-x[:,2,:,:w_x-1]),2).sum()
-        return self.TVLoss_weight*(h_tv/h_x+w_tv/w_x)/batch_size
+        h_tv = (torch.abs(x[:,0,1:,:]-x[:,0,:-1,:])).sum()+(torch.abs(x[:,2,1:,:]-x[:,2,:-1,:])).sum()
+        w_tv = (torch.abs(x[:,0,:,1:]-x[:,0,:,:-1])).sum()+(torch.abs(x[:,2,:,1:]-x[:,2,:,:-1])).sum()
+        return self.TVLoss_weight*(h_tv+w_tv)/batch_size
 
     def _tensor_size(self,t):
         return (t.size()[1]-1)*t.size()[2]*t.size()[3]
@@ -397,46 +329,73 @@ def train():
     resnet18  = models.resnet18(pretrained=True)
     model = soccerSegment(resnet18,[5,6,7,8],[64, 128, 256, 256, 0],[512, 256, 256, 128],[512, 512, 256],256)
     #model = soccerSegment(resnet18)
-    #if torch.cuda.is_available():
-     #   model.cuda()
+    model.to(avDev)
     
-    iter = 0
-    
+    count = 0
+    accuracy =0
     criterionSegmented = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr = lr)
-    optimizer.zero_grad()
-    for num in range(10):
-        flagToRun = 1
-        print("This is epoch:",epoch)
-        dataiter_segmentation = train_loader_segmentation.__iter__()
-        while(flagToRun):
-           print("Train Data") 
-           try:
-               images,targets,input_name,output_name = dataiter_segmentation.next()
-               
-           except:
-               flagToRun=0
-           if(flagToRun):
-               if torch.cuda.is_available():
-                   images = images.to(avDev)
-                   targets = targets.to(avDev)
-               segmented,detected = model(images)
-               segmentedLabels= torch.argmax(segmented,1)
-               tvLoss = TVLoss()
-               toadd = tvLoss.forward(segmented)
-               loss = criterionSegmented(segmented, targets.long()) 
-               print("Loss",loss.item())
+    for num in range(epoch):
+        model.train()
+        for images, targets in train_loader_segmentation:
+        
+            images = images.to(avDev)
+            targets = targets.to(avDev)
+            segmented,detected = model(images)
+            optimizer.zero_grad()
+            segmentedLabels= torch.argmax(segmented,1)
+            tvLoss = TVLoss()
+            total_variation_loss = tvLoss.forward(segmented)
+            entropy_loss = criterionSegmented(segmented, targets.long())
+            loss = entropy_loss + total_variation_loss
+            print("Train entropy_loss ,epoch",entropy_loss.item(),num)
+            print("Train Total Variation loss,epoch",total_variation_loss.item(),num)
           # Getting gradients w.r.t. parameters
-               loss.backward()
+            loss.backward()
 
           # Updating parameters
-               optimizer.step()
-               showImages(images[0],num,input_name[0])
-               visualiseSegmented(targets[0],num,"train",output_name[0])
-               visualiseSegmented(segmentedLabels[0],num,"output",output_name[0])
-           
-               
-               
+            optimizer.step()
+        for images, targets in validate_loader_segmentation:
+            model.eval()
+            with torch.no_grad():
+                         
+                images = images.to(avDev)
+                targets = targets.to(avDev)
+
+                segmented,detected = model(images)
+
+                segmentedLabels=torch.argmax(segmented,dim=1)
+                tvLoss = TVLoss()
+            total_variation_loss = tvLoss.forward(segmented)
+            entropy_loss = criterionSegmented(segmented, targets.long())
+            loss = entropy_loss + total_variation_loss
+            print("Validate entropy_loss ",entropy_loss.item())
+            print("Validate Variation loss",total_variation_loss.item())
+            accuracy =segmentationAccuracy(segmentedLabels.long(),targets.long())
+            print('Validate Segmentation Accuracy: {}.',accuracy)
+        print("Epoch",num)
+    for images, targets in test_loader_segmentation:
+        count+=1
+        model.eval()
+        with torch.no_grad():
+                         
+          images = images.to(avDev)
+          targets = targets.to(avDev)
+
+          segmented,detected = model(images)
+
+          segmentedLabels=torch.argmax(segmented,dim=1)
+          tvLoss = TVLoss()
+          total_variation_loss = tvLoss.forward(segmented)
+          entropy_loss = criterionSegmented(segmented, targets.long())
+          loss = entropy_loss + total_variation_loss
+          print("Validate entropy_loss ",entropy_loss.item())
+          print("Validate Variation loss",total_variation_loss.item())
+        accuracy=segmentationAccuracy(segmentedLabels.long(),targets.long())/count
+        print('Validate Segmentation Accuracy: {}.',accuracy)
+        showImages(images[0],count)
+        visualiseSegmented(segmentedLabels[0],count,"output")
+        visualiseSegmented(targets[0],count,"truth")
               
 train()
 
