@@ -438,8 +438,7 @@ def train():
             print("Train Total Variation loss,epoch",total_variation_loss.item(),num)
           # Getting gradients w.r.t. parameters
             loss.backward()
-            accuracies =segmentationAccuracy(segmentedLabels.long(),targets,[0,1,2])
-            Total:',accuracies[0],accuracies[1],accuracies[2],accuracies[3])
+            
           # Updating parameters
             optimizer.step()
         for images, targets in validate_loader_segmentation:
