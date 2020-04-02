@@ -19,6 +19,7 @@ import copy
 import os
 from PIL import Image
 from torchvision.utils import save_image
+from operator import add
 
 
 # # Check Available Devices
@@ -32,7 +33,7 @@ if torch.cuda.is_available:
 else:
   avDev = torch.device("cpu")
 print(avDev)
-avDev="cpu"
+avDev = "cpu"
 
 
 # # Set Seed
@@ -134,6 +135,7 @@ class CudaVisionDataset(Dataset):
                 target_img[index[:,0],index[:,1]] =1
                 index = (target_img_temp == values[3]).nonzero()
                 target_img[index[:,0],index[:,1]] =2
+                target_img = target_img.long()
             else:    
                 trnfm_target= transformations(target_transform)
                 target_img  = trnfm_target(target_img)
@@ -175,7 +177,7 @@ def read_files(img_dir_path):
 
 
 lr = 0.001
-batchSize = 20
+batchSize = 1
 epoch = 100
 
 
@@ -288,16 +290,99 @@ class soccerSegment(nn.ModuleList):
         seg = self.conv_seg(skip_links[i])
         det = self.conv_det(skip_links[i])
         return seg, det
+"""
+class LocationAwareConv2d(torch.nn.Conv2d):
+    def __init__(self,gradient,w,h,in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True):
+        super().__init__(in_channels, out_channels, kernel_size, stride=stride, padding=padding, dilation=dilation, groups=groups, bias=bias)
+        self.locationBias=torch.nn.Parameter(torch.zeros(w,h,3))
+        self.locationEncode=torch.autograd.Variable(torch.ones(w,h,3))
+        if gradient:
+            for i in range(w):
+                self.locationEncode[i,:,1]=(i/float(w-1))
+            for i in range(h):
+                self.locationEncode[:,i,0] = (i/float(h-1))
+    def forward(self,inputs):
+        if self.locationBias.device != inputs.device:
+            self.locationBias=self.locationBias.to(inputs.get_device())
+        if self.locationEncode.device != inputs.device:
+            self.locationEncode=self.locationEncode.to(inputs.get_device())
+        b=self.locationBias*self.locationEncode
+        return super().forward(inputs)+b[:,:,0]+b[:,:,1]+b[:,:,2]
 
-def segmentationAccuracy(segmented,targets):
-    sizes = segmented.size()
-    
-    total_pixel = sizes[0] * sizes[1] *sizes[2]
-    difference = torch.abs(segmented-targets)
-    same =(difference==0).sum()
-    
-    accuracy = (same.item())/total_pixel *100
-    return accuracy
+class soccerSegment(nn.ModuleList):
+    def __init__(self, resnet18):
+        super(soccerSegment, self).__init__()
+        self.resnet18 =resnet18
+        #self.layer4 = nn.Sequential(*list(resnet18.children())[:-2])
+        self.preconv = nn.Conv2d(3,64,kernel_size=7,stride =2,padding=3)
+        self.prebatch = nn.BatchNorm2d(64)
+        self.pool = nn.MaxPool2d(kernel_size=1,stride=2,padding=0)
+        self.relu = nn.ReLU()
+        self.deconv1_2 = nn.ConvTranspose2d(512,256,kernel_size=2,stride=2,padding=0)
+        #self.deconv2_3 =  nn.ConvTranspose2d(256,256,kernel_size=2,stride=2,padding=0)
+        self.deconv3 = nn.ConvTranspose2d(512,128,kernel_size=2,stride=2,padding=0)
+        self.batch1_2 = nn.BatchNorm2d(512)
+        self.batch3 = nn.BatchNorm2d(256)
+        self.conv1 = nn.Conv2d(64,128,kernel_size=1, stride=1, padding=0)
+        self.conv2 = nn.Conv2d(128,256,kernel_size=1, stride=1, padding=0)
+        self.conv3 = nn.Conv2d(256,256,kernel_size=1, stride=1, padding=0)
+        self.conv_det = LocationAwareConv2d(True,120,160,256, 3,kernel_size=1, stride=1, padding=0)
+        self.conv_seg = LocationAwareConv2d(True,120,160,256,3, kernel_size=1, stride=1, padding=0)
+        
+    def forward(self,x):
+        print(x.shape)
+        l1 = self.resnet18.layer1(self.pool(self.prebatch(self.preconv(x))))
+        print(l1.shape)
+        l2 = self.resnet18.layer2(l1)
+        print(l2.shape)
+        l3 = self.resnet18.layer3(l2)
+        l4 = self.relu(self.resnet18.layer4(l3))
+        #l2=self.conv2(l2)
+        d1 = self.deconv1_2(l4)
+        con1 = self.relu(self.batch1_2(torch.cat((d1,self.conv3(l3)),1)))
+        d2 = self.deconv1_2(con1)
+        print(d2.shape)
+        con2 = self.relu(self.batch1_2(torch.cat((d2,self.conv2(l2)),1)))
+        d3 = self.deconv3(con2)
+        con3 = self.relu(self.batch3(torch.cat((d3,self.conv1(l1)),1)))
+        seg = self.conv_seg(con3)
+        det = self.conv_det(con3)
+        return seg, det
+        
+       
+        
+
+# In[ ]:
+
+
+
+#Metrics 
+"""
+def segmentationAccuracy(segmented,targets,classes):
+    accuracies = [0,0,0,0]
+    avg_acc = 0
+    for c in classes:
+        total_pixels = (targets==c).sum()
+        correct_pixels = np.logical_and((targets==c),(segmented==c)).sum()
+        accuracies[c] = correct_pixels/total_pixels.item()*100
+        avg_acc = avg_acc + accuracies[c]
+    avg_acc = avg_acc/3 
+    accuracies[3] = avg_acc
+    return accuracies
+
+def seg_iou(ground_truth, predicted, classes):
+    avg_iou = 0
+    iou = [0,0,0,0]
+    for c in classes:
+        gt = (ground_truth==c)
+        pr = (predicted==c)
+        intersection = np.logical_and(gt, pr)
+        union = np.logical_or(gt, pr)
+        iou_score = intersection.sum().item() / union.sum().item()
+        iou[c] = iou_score
+        avg_iou += iou_score
+    iou[3]=avg_iou
+    return iou
     
 class TVLoss(nn.Module):
     def __init__(self,TVLoss_weight=0.00001):
@@ -341,18 +426,20 @@ def train():
         
             images = images.to(avDev)
             targets = targets.to(avDev)
-            segmented,detected = model(images)
             optimizer.zero_grad()
+            segmented,detected = model(images)
+            
             segmentedLabels= torch.argmax(segmented,1)
             tvLoss = TVLoss()
             total_variation_loss = tvLoss.forward(segmented)
-            entropy_loss = criterionSegmented(segmented, targets.long())
+            entropy_loss = criterionSegmented(segmented, targets)
             loss = entropy_loss + total_variation_loss
             print("Train entropy_loss ,epoch",entropy_loss.item(),num)
             print("Train Total Variation loss,epoch",total_variation_loss.item(),num)
           # Getting gradients w.r.t. parameters
             loss.backward()
-
+            accuracies =segmentationAccuracy(segmentedLabels.long(),targets,[0,1,2])
+            Total:',accuracies[0],accuracies[1],accuracies[2],accuracies[3])
           # Updating parameters
             optimizer.step()
         for images, targets in validate_loader_segmentation:
@@ -371,9 +458,12 @@ def train():
             loss = entropy_loss + total_variation_loss
             print("Validate entropy_loss ",entropy_loss.item())
             print("Validate Variation loss",total_variation_loss.item())
-            accuracy =segmentationAccuracy(segmentedLabels.long(),targets.long())
-            print('Validate Segmentation Accuracy: {}.',accuracy)
+            accuracies =segmentationAccuracy(segmentedLabels.long(),targets,[0,1,2])
+            print('Validate Segmentation Accuracy: Background,Line,Field,Total:',accuracies[0],accuracies[1],accuracies[2],accuracies[3])
+            
         print("Epoch",num)
+    accuracies = [0,0,0,0]
+    iou = [0,0,0,0]
     for images, targets in test_loader_segmentation:
         count+=1
         model.eval()
@@ -391,11 +481,23 @@ def train():
           loss = entropy_loss + total_variation_loss
           print("Validate entropy_loss ",entropy_loss.item())
           print("Validate Variation loss",total_variation_loss.item())
-        accuracy=segmentationAccuracy(segmentedLabels.long(),targets.long())/count
-        print('Validate Segmentation Accuracy: {}.',accuracy)
+        accuracies_returned = segmentationAccuracy(segmentedLabels.long(),targets,[0,1,2])
+        iou_returned = seg_iou(targets,segmentedLabels.long(),[0,1,2])
+        accuracies = list( map(add, accuracies, accuracies_returned) )
+        iou = list( map(add, iou, iou_returned) )
         showImages(images[0],count)
         visualiseSegmented(segmentedLabels[0],count,"output")
         visualiseSegmented(targets[0],count,"truth")
+        
+    print('Test Segmentation Accuracy: {}.',accuracies[3]/count)
+    print('Field Accuracy:',accuracies[2]/count)
+    print('Line Accuracy:',accuracies[1]/count)
+    print('Background Accuracy:',accuracies[0]/count)
+    print('Iou:' , iou[3]/count)
+    print('Iou Field',iou[2]/count)
+    print('Iou Line',iou[1]/count)
+    print('Iou Background',iou[0]/count)
+    
               
 train()
 
