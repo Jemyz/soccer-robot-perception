@@ -14,7 +14,7 @@ def setSeed(seed):
 
 def getDev():
     torch.cuda.empty_cache()
-    if torch.cuda.is_available:
+    if torch.cuda.is_available():
         avDev = torch.device("cuda")
     else:
         avDev = torch.device("cpu")
