@@ -3,20 +3,17 @@
 
 import torch
 import torch.nn as nn
-import random
 import numpy as np
 
 import torchvision.transforms as transforms
-from torch.utils.data import Dataset, DataLoader
-import copy
 import os
-from PIL import Image
+from tvloss import TVLossDetect
 
 from utilities import getDev, setSeed
 
 avDev = getDev()
 print(avDev)
-
+avDev = "cpu"
 seed = 1
 setSeed(seed)
 
@@ -88,7 +85,10 @@ def train():
             showDetectedImages(targets[0],0,"train")
             optimizer.zero_grad()
             segmented, detected = model(images)
-            loss = criterionDetected(detected, targets)
+            tvLoss = TVLossDetect()
+            total_variation_loss = tvLoss.forward(detected)
+            mse_loss = criterionDetected(detected, targets)
+            loss =  mse_loss + total_variation_loss
             print("Epoch: ", epoch, "step#: ", steps, " Train loss: ", loss.item())
             steps += 1
 
@@ -109,7 +109,10 @@ def train():
                 segmented, detected = model(images)
 
             segmented, detected = model(images)
-            loss = criterionDetected(detected, targets)
+            tvLoss = TVLossDetect()
+            total_variation_loss = tvLoss.forward(detected)
+            mse_loss = criterionDetected(detected, targets)
+            loss =  mse_loss + total_variation_loss
             print("Epoch: ", epoch, "step#: ", steps, " Validate loss: ", loss.item())
             steps += 1
             val_acc += det_accuracy()
@@ -143,7 +146,10 @@ def train():
 
             segmented, detected = model(images)
 
-            loss = criterionDetected(targets, detected)
+            tvLoss = TVLossDetect()
+            total_variation_loss = tvLoss.forward(detected)
+            mse_loss = criterionDetected(detected, targets)
+            loss =  mse_loss + total_variation_loss
             print("Test loss: ", loss.item())
             showImages(images[0], count)
             showDetectedImages(detected[0], count, "output")

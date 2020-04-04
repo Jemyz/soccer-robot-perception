@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 import torchvision.transforms as transforms
 import numpy as np
 import torch
-
+import copy
 
 radius = 5
 numberOfPoints = 500
@@ -118,12 +118,58 @@ def read_files(img_dir_path):
     
     return img_paths,target_paths
 
+
+class CudaVisionDatasetSegmentation(Dataset):
+    def __init__(self, dir_path,transform=None):
+        super(CudaVisionDatasetSegmentation, self).__init__()
+        self.img_paths,self.target_paths = read_files(img_dir_path=dir_path)
+        self.transform = transform
+          
+    def __getitem__(self, index):
+        
+        input_img = Image.open(self.img_paths[index])
+        
+        #print(input_img.size)
+        #showImages(input_img)
+        input_img = transforms.functional.resize(input_img,(480,640))
+        #showImages(input_img)
+        target_img = Image.open(self.target_paths[index])
+        
+        target_img = transforms.functional.resize(target_img,(120,160))
+        if self.transform != None:
+            
+            trnfm_input = transformations(self.transform)
+            input_img = trnfm_input(input_img)
+            target_transform  = copy.copy(self.transform)
+            
+            target_transform.pop()
+            trnfm_target= transformations(target_transform)
+            target_img1  = trnfm_target(target_img)
+            target_img_temp = torch.squeeze(target_img1)
+            target_img = torch.ones([120,160], dtype=torch.float64)
+            values= torch.tensor([0.0000,1.0,2.0,3.0])
+            target_img_temp = target_img_temp *255
+            index = (target_img_temp == values[0]).nonzero()
+            target_img[index[:,0],index[:,1]] =0
+            index = (target_img_temp == values[1]).nonzero()
+            target_img[index[:,0],index[:,1]] =2
+            index = (target_img_temp == values[2]).nonzero()
+            target_img[index[:,0],index[:,1]] =1
+            index = (target_img_temp == values[3]).nonzero()
+            target_img[index[:,0],index[:,1]] =2
+            target_img = target_img.long()
+        return input_img,target_img
+    def __len__(self):
+        return len(self.target_paths)
+
 class CudaVisionDataLoader:
 
     def __call__(self, dir_path='./small_data', task="detection", transform=None, batch_size=20):
         if task == "detection":
             dataset = CudaVisionDatasetDetection(dir_path, transform)
-        return DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        else:
+            dataset = CudaVisionDatasetSegmentation(dir_path, transform)
+        return DataLoader(dataset, batch_size=20, shuffle=True)
 
 
 def transformations(listTransforms):
