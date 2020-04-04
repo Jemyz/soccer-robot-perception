@@ -97,7 +97,6 @@ def train():
             # Updating parameters
             optimizer.step()
             train_acc += det_accuracy()
-            break
         train_acc /= len(train_loader_detection)
         val_acc = 0.0
         model.eval()
