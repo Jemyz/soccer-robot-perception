@@ -27,83 +27,7 @@ batchSize = 20
 epochs = 100
 
 
-def transformations(listTransforms):
-    return transforms.Compose(listTransforms)
-
-
-class CudaVisionDataset(Dataset):
-
-    def __init__(self, dir_path, task="detection", transform=None):
-        super(CudaVisionDataset, self).__init__()
-        self.img_paths, self.target_paths = read_files(img_dir_path=dir_path)
-        self.transform = transform
-        self.task = task
-
-    def __getitem__(self, index):
-
-        input_img = Image.open(self.img_paths[index])
-
-        # print(input_img.size)
-        # showImages(input_img)
-        input_img = transforms.functional.resize(input_img, (480, 640))
-        # showImages(input_img)
-        target_img = Image.open(self.target_paths[index])
-
-        target_img = transforms.functional.resize(target_img, (120, 160))
-        if self.transform != None:
-
-            trnfm_input = transformations(self.transform)
-            input_img = trnfm_input(input_img)
-            target_transform = copy.copy(self.transform)
-            if self.task == "segmentation":
-                target_transform.pop()
-                trnfm_target = transformations(target_transform)
-                target_img1 = trnfm_target(target_img)
-                target_img_temp = torch.squeeze(target_img1)
-                target_img = torch.ones([120, 160], dtype=torch.float64)
-                values = torch.tensor([0.0000, 1.0, 2.0, 3.0])
-                target_img_temp = target_img_temp * 255
-                index = (target_img_temp == values[0]).nonzero()
-                target_img[index[:, 0], index[:, 1]] = 0
-                index = (target_img_temp == values[1]).nonzero()
-                target_img[index[:, 0], index[:, 1]] = 2
-                index = (target_img_temp == values[2]).nonzero()
-                target_img[index[:, 0], index[:, 1]] = 1
-                index = (target_img_temp == values[3]).nonzero()
-                target_img[index[:, 0], index[:, 1]] = 2
-            else:
-                trnfm_target = transformations(target_transform)
-                target_img = trnfm_target(target_img)
-
-            # print(target_img.shape)
-        return input_img, target_img
-
-    def __len__(self):
-        return len(self.target_paths)
-
-
-def read_files(img_dir_path):
-    img_paths = []
-    target_paths = []
-    if os.path.isdir(img_dir_path):
-        print("Folder exists. Reading..")
-    dir = os.path.join(img_dir_path, 'input')
-    for r, _, f in os.walk(dir):
-        f.sort()
-        for file in f:
-            img_paths.append(os.path.join(r, file))
-
-    if len(img_paths) == 0:
-        print("No Images in given path available. Check directory or format.")
-    dir = os.path.join(img_dir_path, 'output')
-    for r, _, f in os.walk(dir):
-        f.sort()
-        for file in f:
-            target_paths.append(os.path.join(r, file))
-    if len(target_paths) == 0:
-        print("No Images in given path available. Check directory or format.")
-
-    return img_paths, target_paths
+from dataloader import CudaVisionDataLoader
 
 
 listTransforms_train = [transforms.ToTensor(), transforms.Normalize(mean=[0.5, 0.5, 0.5],
@@ -111,12 +35,6 @@ listTransforms_train = [transforms.ToTensor(), transforms.Normalize(mean=[0.5, 0
 listTransforms_test = [transforms.ToTensor(), transforms.Normalize(mean=[0.5, 0.5, 0.5],
                                                                    std=[0.5, 0.5, 0.5])]
 
-
-class CudaVisionDataLoader:
-
-    def __call__(self, dir_path='./small_data', task="detection", transform=None, batch_size=20):
-        dataset = CudaVisionDataset(dir_path, task, transform)
-        return DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 
 data = CudaVisionDataLoader()
@@ -157,7 +75,7 @@ def train():
         epoch = checkpoint['epoch'] + 1
         loss = checkpoint['loss']
         print("Checkpoint Loaded")
-
+    
     while epoch < epochs:
 
         print("Epoch: ", epoch)
@@ -167,6 +85,7 @@ def train():
         for images, targets in train_loader_detection:
             images = images.to(avDev)
             targets = targets.to(avDev)
+            showDetectedImages(targets[0],0,"train")
             optimizer.zero_grad()
             segmented, detected = model(images)
             loss = criterionDetected(detected, targets)
@@ -214,6 +133,7 @@ def train():
         epoch += 1
 
     count = 0
+    
     for images, targets in test_loader_detection:
         count += 1
         model.eval()
