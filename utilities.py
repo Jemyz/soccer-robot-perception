@@ -48,3 +48,28 @@ def showDetectedImages(image,iter,stringName):
     plt.imshow(detImage)
     plt.savefig('./outputs/detected/img_'+ stringName+'[' + str(iter) + '].png')
     plt.show()
+
+def visualiseSegmented(segmentedImage,iter,stringName):
+    colorMap = [[0,0,0],[255,255,255],[0,255,0]]
+    size = segmentedImage.size()
+    segImage = np.empty([3,size[0],size[1]])
+    for i in range(size[0]):
+        for j in range(size[1]):
+            color = colorMap[int(segmentedImage[i][j])]
+            for k in range(3):
+                segImage[k,i,j] = color[k]
+    segImage = segImage.transpose((1,2,0))
+    plt.imshow(segImage)
+    plt.savefig('./outputs/segmented/img_'+ stringName+'[' + str(iter) + '].png')
+    plt.show()
+
+def plot_learning_curve(loss_errors,task):
+  plt.xlabel("Iterations")
+  plt.ylabel("Loss")
+  plt.plot(np.array(loss_errors))
+  if(task == "detection"):
+      plt.savefig('./outputs/detected/curve.png')
+  else:
+      plt.savefig('./outputs/segmented/curve.png')
+    
+      

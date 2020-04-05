@@ -74,7 +74,7 @@ class CudaVisionDatasetDetection(Dataset):
         target = torch.from_numpy(target_probabilities)
         
         
-        return input_img,target
+        return input_img,target.float()
     def gaussian_blob(self,img,classPassed, mean_x, sigma_x, mean_y, sigma_y, number_of_points):
         indicies_x = np.random.normal(mean_x, sigma_x, number_of_points).astype(int)
         indicies_y = np.random.normal(mean_y, sigma_y, number_of_points).astype(int)
@@ -169,7 +169,7 @@ class CudaVisionDataLoader:
             dataset = CudaVisionDatasetDetection(dir_path, transform)
         else:
             dataset = CudaVisionDatasetSegmentation(dir_path, transform)
-        return DataLoader(dataset, batch_size=20, shuffle=True)
+        return DataLoader(dataset, batch_size, shuffle=True)
 
 
 def transformations(listTransforms):

@@ -20,7 +20,7 @@ class TVLossSegment(nn.Module):
 
 class TVLossDetect(nn.Module):
     def __init__(self,TVLoss_weight=0.00001):
-        super(TVLossSegment,self).__init__()
+        super(TVLossDetect,self).__init__()
         self.TVLoss_weight = TVLoss_weight
 
     def forward(self,x):
