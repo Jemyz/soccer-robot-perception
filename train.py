@@ -78,7 +78,8 @@ def train():
         epoch = checkpoint['epoch'] + 1
         loss = checkpoint['loss']
         print("Checkpoint Loaded")
-    
+    detlosses= []
+    seglosses = []
     while epoch < epochs:
 
         print("Epoch: ", epoch)
@@ -88,6 +89,7 @@ def train():
         fullDataCovered = 0
         dataiter_detection = train_loader_detection.__iter__()
         dataiter_segmentation = train_loader_segmentation.__iter__()
+        
         while(fullDataCovered!=1):
             for i in range(2):
                 try:
@@ -104,6 +106,7 @@ def train():
                 total_variation_loss = tvLoss.forward(detected)
                 mseloss = criterionDetected(detected, targets)
                 loss =  mseloss + total_variation_loss
+                detlosses.append(loss.item())
                 print("Epoch: ", epoch, "step#: ", steps, " Train loss: ", loss.item())
                 steps += 1
                     # Getting gradients w.r.t. parameters
@@ -126,6 +129,7 @@ def train():
                 total_variation_loss = tvLoss.forward(segmented)
                 cross_entropy_loss = criterionSegmented(segmented, targets)
                 loss =  cross_entropy_loss + total_variation_loss
+                seglosses.append(loss.item())
                 print("Epoch: ", epoch, "step#: ", steps, " Train loss: ", loss.item())
                 steps += 1
                     # Getting gradients w.r.t. parameters
@@ -140,8 +144,7 @@ def train():
         seg_acc = 0.0
         model.eval()
         steps = 0
-        detlosses= []
-        seglosses = []
+        
         for images, targets in validate_loader_detection:
             with torch.no_grad():
                 images = images.to(avDev)
@@ -153,7 +156,7 @@ def train():
                 total_variation_loss = tvLoss.forward(detected)
                 mseloss = criterionDetected(detected, targets)
                 detloss =  mseloss + total_variation_loss
-                detlosses.append(detloss.item())
+                
                 print("Epoch: ", epoch, "step#: ", steps, " Detection Validate loss: ", detloss.item())
                 steps += 1
                 val_acc += det_accuracy()
@@ -174,7 +177,7 @@ def train():
             segloss = entropy_loss + total_variation_loss
             print("Validate entropy_loss ",entropy_loss.item())
             print("Validate Variation loss",total_variation_loss.item())
-            seglosses.append(segloss)
+            
             accuracies =segmentationAccuracy(segmentedLabels.long(),targets,[0,1,2])
             print('Validate Segmentation Accuracy: Background,Line,Field,Total:',accuracies[0],accuracies[1],accuracies[2],accuracies[3])
             seg_acc += accuracies[3]
