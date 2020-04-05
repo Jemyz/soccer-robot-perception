@@ -22,6 +22,8 @@ from utilities import showImages, showDetectedImages,visualiseSegmented
 lr = 0.001
 batchSize = 20
 epochs = 100
+tvweightdetection = 0.000001
+tvweightsegmentation = 0.00001
 
 
 from dataloader import CudaVisionDataLoader
@@ -102,7 +104,7 @@ def train():
                 targets = targets.to(avDev)
                 optimizer.zero_grad()
                 segmented, detected = model(images)
-                tvLoss = TVLossDetect()
+                tvLoss = TVLossDetect(tvweightdetection)
                 total_variation_loss = tvLoss.forward(detected)
                 mseloss = criterionDetected(detected, targets)
                 loss =  mseloss + total_variation_loss
@@ -115,31 +117,31 @@ def train():
                 optimizer.step()
                 train_acc += det_accuracy()
                 i +=1
-                try:
+            try:
                     images, targets = dataiter_segmentation.next()
-                except:
+            except:
                     fullDataCovered = 1
                     dataiter_segmentation = train_loader_segmentation.__iter__()
                     images, targets = dataiter_segmentation.next()
-                images = images.to(avDev)
-                targets = targets.to(avDev)
-                optimizer.zero_grad()
-                segmented, detected = model(images)
-                segmentedLabels=torch.argmax(segmented,dim=1)
-                accuracies =segmentationAccuracy(segmentedLabels.long(),targets,[0,1,2])
-                tvLoss = TVLossSegment()
-                total_variation_loss = tvLoss.forward(segmented)
-                cross_entropy_loss = criterionSegmented(segmented, targets)
-                loss =  cross_entropy_loss + total_variation_loss
-                seglosses.append(loss.item())
-                print("Epoch: ", epoch, "step#: ", steps, " Train segmentation loss: ", loss.item())
-                steps += 1
+            images = images.to(avDev)
+            targets = targets.to(avDev)
+            optimizer.zero_grad()
+            segmented, detected = model(images)
+            segmentedLabels=torch.argmax(segmented,dim=1)
+            accuracies =segmentationAccuracy(segmentedLabels.long(),targets,[0,1,2])
+            tvLoss = TVLossSegment(tvweightsegmentation)
+            total_variation_loss = tvLoss.forward(segmented)
+            cross_entropy_loss = criterionSegmented(segmented, targets)
+            loss =  cross_entropy_loss + total_variation_loss
+            seglosses.append(loss.item())
+            print("Epoch: ", epoch, "step#: ", steps, " Train segmentation loss: ", loss.item())
+            steps += 1
                     # Getting gradients w.r.t. parameters
-                loss.backward()
+            loss.backward()
             # Updating parameters
-                optimizer.step()
-                train_acc += det_accuracy()
-                i +=1
+            optimizer.step()
+            train_acc += det_accuracy()
+            i +=1
             
         train_acc /= len(train_loader_detection)
         val_acc = 0.0
@@ -154,7 +156,7 @@ def train():
                 segmented, detected = model(images)
 
                 segmented, detected = model(images)
-                tvLoss = TVLossDetect()
+                tvLoss = TVLossDetect(tvweightdetection)
                 total_variation_loss = tvLoss.forward(detected)
                 mseloss = criterionDetected(detected, targets)
                 detloss =  mseloss + total_variation_loss
@@ -173,7 +175,7 @@ def train():
                 segmented,detected = model(images)
 
                 segmentedLabels=torch.argmax(segmented,dim=1)
-                tvLoss = TVLossSegment()
+                tvLoss = TVLossSegment(tvweightsegmentation)
             total_variation_loss = tvLoss.forward(segmented)
             entropy_loss = criterionSegmented(segmented, targets.long())
             segloss = entropy_loss + total_variation_loss
@@ -215,7 +217,7 @@ def train():
 
             segmented, detected = model(images)
 
-            tvLoss = TVLossDetect()
+            tvLoss = TVLossDetect(tvweightdetection)
             total_variation_loss = tvLoss.forward(detected)
             mseloss = criterionDetected(detected, targets)
             loss =  mseloss + total_variation_loss
@@ -237,7 +239,7 @@ def train():
           segmented,detected = model(images)
 
           segmentedLabels=torch.argmax(segmented,dim=1)
-          tvLoss = TVLossSegment()
+          tvLoss = TVLossSegment(tvweightsegmentation)
           total_variation_loss = tvLoss.forward(segmented)
           entropy_loss = criterionSegmented(segmented, targets.long())
           loss = entropy_loss + total_variation_loss
