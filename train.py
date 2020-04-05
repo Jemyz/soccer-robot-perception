@@ -20,7 +20,7 @@ setSeed(seed)
 from utilities import showImages, showDetectedImages,visualiseSegmented
 
 lr = 0.001
-batchSize = 2
+batchSize = 20
 epochs = 100
 
 
@@ -107,7 +107,7 @@ def train():
                 mseloss = criterionDetected(detected, targets)
                 loss =  mseloss + total_variation_loss
                 detlosses.append(loss.item())
-                print("Epoch: ", epoch, "step#: ", steps, " Train loss: ", loss.item())
+                print("Epoch: ", epoch, "step#: ", steps, " Train detection loss: ", loss.item())
                 steps += 1
                     # Getting gradients w.r.t. parameters
                 loss.backward()
@@ -125,12 +125,14 @@ def train():
                 targets = targets.to(avDev)
                 optimizer.zero_grad()
                 segmented, detected = model(images)
+                segmentedLabels=torch.argmax(segmented,dim=1)
+                accuracies =segmentationAccuracy(segmentedLabels.long(),targets,[0,1,2])
                 tvLoss = TVLossSegment()
                 total_variation_loss = tvLoss.forward(segmented)
                 cross_entropy_loss = criterionSegmented(segmented, targets)
                 loss =  cross_entropy_loss + total_variation_loss
                 seglosses.append(loss.item())
-                print("Epoch: ", epoch, "step#: ", steps, " Train loss: ", loss.item())
+                print("Epoch: ", epoch, "step#: ", steps, " Train segmentation loss: ", loss.item())
                 steps += 1
                     # Getting gradients w.r.t. parameters
                 loss.backward()
@@ -175,8 +177,7 @@ def train():
             total_variation_loss = tvLoss.forward(segmented)
             entropy_loss = criterionSegmented(segmented, targets.long())
             segloss = entropy_loss + total_variation_loss
-            print("Validate entropy_loss ",entropy_loss.item())
-            print("Validate Variation loss",total_variation_loss.item())
+            print("Epoch: ", epoch, "step#: ", steps, " Segmentation Validate loss: ", loss.item())
             
             accuracies =segmentationAccuracy(segmentedLabels.long(),targets,[0,1,2])
             print('Validate Segmentation Accuracy: Background,Line,Field,Total:',accuracies[0],accuracies[1],accuracies[2],accuracies[3])
@@ -218,7 +219,7 @@ def train():
             total_variation_loss = tvLoss.forward(detected)
             mseloss = criterionDetected(detected, targets)
             loss =  mseloss + total_variation_loss
-            print("Test loss: ", loss.item())
+            print("Detection Test loss: ", loss.item())
             for j in range(batchSize):
                 showImages(images[j], count+j)
                 showDetectedImages(detected[j], count+j, "output")
@@ -240,8 +241,7 @@ def train():
           total_variation_loss = tvLoss.forward(segmented)
           entropy_loss = criterionSegmented(segmented, targets.long())
           loss = entropy_loss + total_variation_loss
-          print("Validate entropy_loss ",entropy_loss.item())
-          print("Validate Variation loss",total_variation_loss.item())
+          print("Segmentation Test loss: ", loss.item())
         accuracies_returned = segmentationAccuracy(segmentedLabels.long(),targets,[0,1,2])
         iou_returned = seg_iou(targets,segmentedLabels.long(),[0,1,2])
         accuracies = list( map(add, accuracies, accuracies_returned) )
