@@ -64,7 +64,7 @@ if os.path.exists(checkpoint_path):
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     print("Checkpoint Loaded")
 num =0
-for images, targets in test_loader_detection:
+for images, targets,list_center,list_class in test_loader_detection:
         
     model.eval()
     with torch.no_grad():

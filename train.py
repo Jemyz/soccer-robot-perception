@@ -78,7 +78,8 @@ def train():
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         epoch = checkpoint['epoch'] + 1
-        loss = checkpoint['loss']
+        segloss = checkpoint['seg_loss']
+        detloss = checkpoint['det_loss']
         print("Checkpoint Loaded")
     detlosses= []
     seglosses = []
@@ -95,11 +96,11 @@ def train():
         while(fullDataCovered!=1):
             for i in range(2):
                 try:
-                    images, targets = dataiter_detection.next()
+                    images, targets,list_center,list_class = dataiter_detection.next()
                 except:
                     fullDataCovered = 1
                     dataiter_detection = train_loader_detection.__iter__()
-                    images,targets = dataiter_detection.next()
+                    images, targets,list_center,list_class = dataiter_detection.next()
                 images = images.to(avDev)
                 targets = targets.to(avDev)
                 optimizer.zero_grad()
@@ -115,7 +116,8 @@ def train():
                 loss.backward()
             # Updating parameters
                 optimizer.step()
-                train_acc += det_accuracy()
+                
+                #train_acc += det_accuracy(detImage,colorMap)
                 i +=1
             try:
                     images, targets = dataiter_segmentation.next()
@@ -149,7 +151,7 @@ def train():
         model.eval()
         steps = 0
         
-        for images, targets in validate_loader_detection:
+        for images, targets,list_center,list_class in validate_loader_detection:
             with torch.no_grad():
                 images = images.to(avDev)
                 targets = targets.to(avDev)
@@ -163,7 +165,7 @@ def train():
                 
                 print("Epoch: ", epoch, "step#: ", steps, " Detection Validate loss: ", detloss.item())
                 steps += 1
-                val_acc += det_accuracy()
+                
         val_acc /= len(validate_loader_detection)
         for images, targets in validate_loader_segmentation:
             model.eval()
@@ -208,7 +210,7 @@ def train():
     count = 0
     plot_learning_curve(detlosses,"detection")
     plot_learning_curve(seglosses,"segmentation")
-    for images, targets in test_loader_detection:
+    for images, targets,list_center,list_class in test_loader_detection:
         count += 1
         model.eval()
         with torch.no_grad():
