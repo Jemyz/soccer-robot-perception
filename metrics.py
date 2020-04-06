@@ -117,7 +117,7 @@ def det_info(ground_truth_centers, predicted_centers, classes, threshold=10.0):
 
 
 def det_accuracy(ground_truth_centers, predicted, classes, threshold=10):
-    batch_tp, batch_fp, batch_fn = 0
+    batch_tp = batch_fp = batch_fn = 0
     for i in range(len(predicted)):
         predicted_centers = get_centers(predicted[i], classes)
         tp, fp, fn = det_info(ground_truth_centers[i], predicted_centers, classes, threshold)
@@ -131,3 +131,22 @@ def det_accuracy(ground_truth_centers, predicted, classes, threshold=10):
     f1score = 2 * (precision * recall) / (precision + recall)
     false_rate = 1 - accuracy
     return accuracy, recall, precision, f1score, false_rate
+
+
+def det_confusion_matrix(ground_truth_centers, predicted, classes, threshold=10):
+    from sklearn.metrics import confusion_matrix
+
+    from scipy.spatial import KDTree
+    confusion = np.zeros((len(classes), len(classes)))
+
+    for i in range(len(predicted)):
+        predicted_centers = get_centers(predicted[i], classes)
+        ground_truth_centers[i]
+        tree = KDTree(ground_truth_centers[i][0])
+        neighbor_dists, neighbor_indices = tree.query(predicted_centers[0])
+
+        y_true = ground_truth_centers[i][1][neighbor_indices].argmax(axis=1)
+        y_pred = predicted_centers[1].argmax(axis=1)
+        confusion += confusion_matrix(y_true, y_pred, labels=np.argmax(classes, axis=1))
+
+    return confusion
