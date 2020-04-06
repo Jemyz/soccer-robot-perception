@@ -116,7 +116,7 @@ def det_info(ground_truth_centers, predicted_centers, classes, threshold=10.0):
     return tp, fp, fn
 
 
-def det_accuracy(ground_truth_centers, predicted, classes, threshold=10):
+def det_metrics(ground_truth_centers, predicted, classes, threshold=10):
     batch_tp = batch_fp = batch_fn = 0
     for i in range(len(predicted)):
         predicted_centers = get_centers(predicted[i], classes)
