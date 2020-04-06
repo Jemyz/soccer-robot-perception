@@ -96,11 +96,11 @@ def train():
         while(fullDataCovered!=1):
             for i in range(2):
                 try:
-                    images, targets,list_center,list_class = dataiter_detection.next()
+                    images, targets,target_center = dataiter_detection.next()
                 except:
                     fullDataCovered = 1
                     dataiter_detection = train_loader_detection.__iter__()
-                    images, targets,list_center,list_class = dataiter_detection.next()
+                    images, targets,target_center = dataiter_detection.next()
                 images = images.to(avDev)
                 targets = targets.to(avDev)
                 optimizer.zero_grad()
@@ -151,7 +151,7 @@ def train():
         model.eval()
         steps = 0
         
-        for images, targets,list_center,list_class in validate_loader_detection:
+        for images, targets,target_center in validate_loader_detection:
             with torch.no_grad():
                 images = images.to(avDev)
                 targets = targets.to(avDev)
@@ -210,7 +210,7 @@ def train():
     count = 0
     plot_learning_curve(detlosses,"detection")
     plot_learning_curve(seglosses,"segmentation")
-    for images, targets,list_center,list_class in test_loader_detection:
+    for images, targets,target_center in test_loader_detection:
         count += 1
         model.eval()
         with torch.no_grad():

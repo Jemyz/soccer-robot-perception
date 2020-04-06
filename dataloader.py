@@ -34,6 +34,7 @@ class CudaVisionDatasetDetection(Dataset):
         list_center = []
         list_class = []
         target_probabilities = np.zeros([3,160,120])
+        target_center = np.zeros([3,160,120])
         for elem in root:
             if(elem.tag == "size"):
                 for subelem in elem:
@@ -60,28 +61,25 @@ class CudaVisionDatasetDetection(Dataset):
                             center_x = int((xmin+xmax)/2)
                             center_y = int((ymin+ymax)/2)
                             target_probabilities = self.gaussian_blob(target_probabilities,0,center_x,radius,center_y,radius,numberOfPoints)
-                            list_center.append((center_x,center_y))
-                            list_class.append([255,0,0])
+                            target_center[0][center_x][center_y]=1.0
                         if(object_name == "goalpost"):
                 #need bottom center point
                             center_x = int((xmin+xmax)/2)
                             center_y = ymin
                             target_probabilities = self.gaussian_blob(target_probabilities,1,center_x,radius,center_y,radius,numberOfPoints)
-                            list_center.append((center_x,center_y))
-                            list_class.append([0,0,255])
+                            target_center[1][center_x][center_y]=1.0
                         if(object_name == "robot"):
                 #bottom center point
                             center_x = int((xmin+xmax)/2)
                             center_y = ymin
                             target_probabilities = self.gaussian_blob(target_probabilities,2,center_x,radius+3,center_y,radius,numberOfPoints)
-                            list_center.append((center_x,center_y))
-                            list_class.append([0,255,0])
+                            target_center[2][center_x][center_y]=1.0
             #Interchange height and rows to make compatible with input
         target_probabilities = target_probabilities.transpose((0,2,1))
         target = torch.from_numpy(target_probabilities)
-        
-        
-        return input_img,target.float(),list_center,list_class
+        target_center = target_center.transpose((0,2,1))
+        target_center = torch.from_numpy(target_center)
+        return input_img,target.float(),target_center
     def gaussian_blob(self,img,classPassed, mean_x, sigma_x, mean_y, sigma_y, number_of_points):
         indicies_x = np.random.normal(mean_x, sigma_x, number_of_points).astype(int)
         indicies_y = np.random.normal(mean_y, sigma_y, number_of_points).astype(int)
