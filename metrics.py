@@ -37,44 +37,33 @@ def getArea(contour):
     return ((contour.max(axis=0) - contour.min(axis=0)).prod())
 
 
-def get_centers(im, thres=25):
+def get_centers(im, classes, thres=25):
     kernel = np.ones((3, 3), np.uint8)
     border = 20
     im = im.astype('uint8')
-    # dilation = cv2.dilate(im, kernel, iterations=1)
-
     im = cv2.copyMakeBorder(im, border, border, border, border, cv2.BORDER_CONSTANT, value=[255, 255, 255])
-
     opening = cv2.morphologyEx(im, cv2.MORPH_OPEN, kernel)
-
     closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
+    contours = []
+    for c in classes:
+        c_im = np.zeros((closing.shape)) + 255
+        c_im[np.all(closing == c, axis=-1)] = c
+        c_im = c_im.astype('uint8')
+        imgray = cv2.cvtColor(c_im, cv2.COLOR_BGR2GRAY)
 
-    # cv2.imshow('image1', dilation)
-    # print(closing[0])
-    # cv2.imshow('image2', closing)
-    # cv2.imshow('image3', opening)
-    #
-    # cv2.waitKey(0)
-    # closing[np.any(closing != [255, 0, 0], axis=-1)] = [255, 255, 255]
-    imgray = cv2.cvtColor(closing, cv2.COLOR_BGR2GRAY)
-    # cv2.imshow('image3', imgray)
-    #
-    # cv2.waitKey(0)
-    ret, thresh = cv2.threshold(imgray, 150, 255, 0)
+        ret, thresh = cv2.threshold(imgray, 150, 255, 0)
 
-    i, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        i, c_contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours.extend(c_contours[1:])
 
-    print(len(contours))
     test = np.zeros((closing.shape)) + 255
     cv2.drawContours(test, contours, -1, (0, 0, 0), 1)
-    # cv2.imshow('image1', im)
-    # cv2.imshow('image', closing)
-    # cv2.waitKey(0)
+
     centers = []
     colors = []
     no_points = []
 
-    for contour in contours[1:]:
+    for contour in contours:
 
         if cv2.contourArea(contour) < thres:
             continue
@@ -120,55 +109,25 @@ def det_info(ground_truth_centers, predicted_centers, classes, threshold=10.0):
                                (neighbor_indices[sorted_indices[i]] != neighbor_indices[sorted_indices[i - 1]]
                                 or i == 0) and neighbor_dists[sorted_indices[i]] < threshold]
 
-        # print(neighbor_dists, neighbor_indices)
-        # print(threshold)
-        # print(correct_indices)
         tp += len(correct_indices)
         fp += len(prs_centers) - len(correct_indices)
         fn += len(gts_centers) - len(correct_indices)
-        # print(neighbor_dists)
-        print(gts_centers, prs_centers)
-        print(c, tp, fp, fn)
+
     return tp, fp, fn
 
 
 def det_accuracy(ground_truth_centers, predicted, classes, threshold=10):
-    acc = 0.0
+    batch_tp, batch_fp, batch_fn = 0
     for i in range(len(predicted)):
-        i = 12
-        predicted_centers = get_centers(predicted[i])
-        print(ground_truth_centers[i])
-        print(predicted_centers)
-        # exit()
-
+        predicted_centers = get_centers(predicted[i], classes)
         tp, fp, fn = det_info(ground_truth_centers[i], predicted_centers, classes, threshold)
-        acc += tp / (tp + fp + fn)
-        print(tp / (tp + fp + fn))
-        exit()
+        batch_tp += tp
+        batch_fp += fp
+        batch_fn += fn
 
-    acc /= len(predicted)
-    print(acc)
-    exit()
-    return acc
-
-
-def det_recall(ground_truth_centers, predicted, classes, threshold=5):
-    predicted_centers = get_centers(predicted)
-    tp, fp, fn = det_info(ground_truth_centers, predicted_centers, classes, threshold)
-    return tp / (tp + fn)
-
-
-def det_precision(ground_truth, predicted_centers, classes, threshold=5):
-    ground_truth_centers = get_centers(ground_truth)
-    tp, fp, fn = det_info(ground_truth_centers, predicted_centers, classes, threshold)
-    return tp / (tp + fp)
-
-
-def det_f1score(precision, recall, tolerance=0.00):
-    return (precision * recall) / (precision + recall + tolerance)
-
-
-def det_false_rate(ground_truth, predicted_centers, classes, threshold=5):
-    ground_truth_centers = get_centers(ground_truth)
-    tp, fp, fn = det_info(ground_truth_centers, predicted_centers, classes, threshold)
-    return 1.0 - tp / (tp + fp + fn)
+    accuracy = batch_tp / (batch_tp + batch_fp + batch_fn)
+    recall = batch_tp / (batch_tp + batch_fn)
+    precision = batch_tp / (batch_tp + batch_fp)
+    f1score = 2 * (precision * recall) / (precision + recall)
+    false_rate = 1 - accuracy
+    return accuracy, recall, precision, f1score, false_rate
