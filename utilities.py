@@ -118,3 +118,29 @@ def plot_learning_curve(loss_errors, task):
         plt.savefig('./outputs/detected/curve.png')
     else:
         plt.savefig('./outputs/segmented/curve.png')
+
+def plot_confusion_matrix(conf_matrix,operation,cmap=plt.cm.Blues):
+    title = 'Normalized confusion matrix'
+    cm = conf_matrix / conf_matrix.sum(axis=1)[:, np.newaxis]
+
+    print(cm)
+
+    fig, ax = plt.subplots()
+    im = ax.imshow(cm, interpolation='nearest', cmap=cmap)
+    ax.figure.colorbar(im, ax=ax)
+    ax.set(
+           title=title,
+           ylabel='True label',
+           xlabel='Predicted label')
+    fmt = '.2f'
+    thresh = cm.max() / 2.
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            ax.text(j, i, format(cm[i, j], fmt),
+                    ha="center", va="center",
+                    color="white" if cm[i, j] > thresh else "black")
+    fig.tight_layout()
+    if operation == "segmentation":
+        plt.savefig('./outputs/segmented/confusion_matrix.png')
+    else:
+        plt.savefig('./outputs/detected/confusion_matrix.png')

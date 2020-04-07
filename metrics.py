@@ -8,9 +8,11 @@ def segmentationAccuracy(segmented, targets, classes):
     targets = targets.cpu()
     segmented = segmented.cpu()
     for c in classes:
-        total_pixels = (targets == c).sum()
-        correct_pixels = np.logical_and((targets == c), (segmented == c)).sum()
-        accuracies[c] = correct_pixels.item() / total_pixels.item() * 100
+        true_positive = np.logical_and((targets == c), (segmented == c)).sum()
+        true_negative = np.logical_and((targets != c),(segmented!=c)).sum()
+        false_positive = np.logical_and((targets == c),(segmented !=c )).sum()
+        false_negative = np.logical_and((targets != c),(segmented ==c )).sum()
+        accuracies[c] = (true_positive.item() + true_negative.item()) / (true_positive.item()+true_negative.item()+false_positive.item()+false_negative.item())  
         avg_acc = avg_acc + accuracies[c]
     avg_acc = avg_acc / len(classes)
     accuracies[3] = avg_acc
@@ -153,4 +155,13 @@ def det_confusion_matrix(ground_truth_centers, predicted, classes, threshold=10)
         y_true = ground_truth_centers[i][1].argmax(axis=1)
         confusion += confusion_matrix(y_true, y_pred, labels=[0, 1, 2, 3])
 
+    return confusion
+
+def seg_confusion_matrix(ground_truth,segmented,classes):
+    from sklearn.metrics import confusion_matrix
+    
+    confusion = np.zeros((len(classes), len(classes)))
+    y_true = ground_truth.view(-1)
+    y_pred = segmented.view(-1)
+    confusion = confusion_matrix(y_true, y_pred, labels=classes)
     return confusion
