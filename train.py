@@ -149,7 +149,6 @@ def train():
             loss.backward()
             # Updating parameters
             optimizer.step()
-            accuracies = segmentationAccuracy(segmentedLabels.long(), targets, [0, 1, 2])
             seg_train_acc += accuracies[3]
             
         det_train_acc /= len(train_loader_detection)
