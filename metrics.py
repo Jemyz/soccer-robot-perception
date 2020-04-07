@@ -8,9 +8,11 @@ def segmentationAccuracy(segmented, targets, classes):
     targets = targets.cpu()
     segmented = segmented.cpu()
     for c in classes:
-        total_pixels = (targets == c).sum()
-        correct_pixels = np.logical_and((targets == c), (segmented == c)).sum()
-        accuracies[c] = correct_pixels.item() / total_pixels.item() * 100
+        true_positive = np.logical_and((targets == c), (segmented == c)).sum()
+        true_negative = np.logical_and((targets != c),(segmented!=c)).sum()
+        false_positive = np.logical_and((targets == c),(segmented !=c )).sum()
+        false_negative = np.logical_and((targets != c),(segmented ==c )).sum()
+        accuracies[c] = (true_positive.item() + true_negative.item()) / (true_positive.item()+true_negative.item()+false_positive.item()+false_negative.item())  
         avg_acc = avg_acc + accuracies[c]
     avg_acc = avg_acc / len(classes)
     accuracies[3] = avg_acc
