@@ -23,16 +23,12 @@ lr = 0.001
 batchSize = 20
 epochs = 100
 
-
 from dataloader import CudaVisionDataLoader
-
 
 listTransforms_train = [transforms.ToTensor(), transforms.Normalize(mean=[0.5, 0.5, 0.5],
                                                                     std=[0.5, 0.5, 0.5])]
 listTransforms_test = [transforms.ToTensor(), transforms.Normalize(mean=[0.5, 0.5, 0.5],
                                                                    std=[0.5, 0.5, 0.5])]
-
-
 
 data = CudaVisionDataLoader()
 parentDir = './small_data'
@@ -46,7 +42,8 @@ test_loader_detection = data.__call__(os.path.join(dirDetectionDataset, 'test'),
 dataiter_detection = train_loader_detection.__iter__()
 
 from model import soccerSegment
-from metrics import det_accuracy
+from metrics import det_metrics, det_confusion_matrix
+from utilities import get_colored_image, get_predected_centers
 
 
 def train():
@@ -72,23 +69,24 @@ def train():
         epoch = checkpoint['epoch'] + 1
         loss = checkpoint['loss']
         print("Checkpoint Loaded")
-    
+
+    color_classes = [[255, 0, 0], [0, 0, 255], [0, 255, 0]]
     while epoch < epochs:
 
         print("Epoch: ", epoch)
         train_acc = 0.0
         model.train()
         steps = 0
-        for images, targets in train_loader_detection:
+        for images, targets, centers in train_loader_detection:
             images = images.to(avDev)
             targets = targets.to(avDev)
-            showDetectedImages(targets[0],0,"train")
+            showDetectedImages(targets[0], 0, "train")
             optimizer.zero_grad()
             segmented, detected = model(images)
             tvLoss = TVLossDetect()
             total_variation_loss = tvLoss.forward(detected)
             mse_loss = criterionDetected(detected, targets)
-            loss =  mse_loss + total_variation_loss
+            loss = mse_loss + total_variation_loss
             print("Epoch: ", epoch, "step#: ", steps, " Train loss: ", loss.item())
             steps += 1
 
@@ -96,12 +94,18 @@ def train():
             loss.backward()
             # Updating parameters
             optimizer.step()
-            train_acc += det_accuracy()
-        train_acc /= len(train_loader_detection)
-        val_acc = 0.0
-        model.eval()
-        steps = 0
-        for images, targets in validate_loader_detection:
+            # print(centers)
+            ground_truth_centers = get_predected_centers(centers)
+            colored_images = get_colored_image(detected)
+            showDetectedImages(detected[0], 0, "train")
+
+            train_acc += det_metrics(ground_truth_centers, colored_images, color_classes)[0]
+
+            train_acc /= len(train_loader_detection)
+            val_acc = 0.0
+            model.eval()
+            steps = 0
+        for images, targets, centers in validate_loader_detection:
             with torch.no_grad():
                 images = images.to(avDev)
                 targets = targets.to(avDev)
@@ -111,10 +115,13 @@ def train():
             tvLoss = TVLossDetect()
             total_variation_loss = tvLoss.forward(detected)
             mse_loss = criterionDetected(detected, targets)
-            loss =  mse_loss + total_variation_loss
+            loss = mse_loss + total_variation_loss
             print("Epoch: ", epoch, "step#: ", steps, " Validate loss: ", loss.item())
             steps += 1
-            val_acc += det_accuracy()
+            ground_truth_centers = get_predected_centers(centers)
+            colored_images = get_colored_image(detected)
+            val_acc += det_metrics(ground_truth_centers, colored_images, color_classes)[0]
+
         val_acc /= len(train_loader_detection)
         if val_acc > best_val_acc:
             val_counter = 0
@@ -132,11 +139,11 @@ def train():
         else:
             print("Full Patience Reached ")
             break
-        epoch += 1
+            epoch += 1
 
     count = 0
-    
-    for images, targets in test_loader_detection:
+
+    for images, targets, centers in test_loader_detection:
         count += 1
         model.eval()
         with torch.no_grad():
@@ -148,7 +155,7 @@ def train():
             tvLoss = TVLossDetect()
             total_variation_loss = tvLoss.forward(detected)
             mse_loss = criterionDetected(detected, targets)
-            loss =  mse_loss + total_variation_loss
+            loss = mse_loss + total_variation_loss
             print("Test loss: ", loss.item())
             showImages(images[0], count)
             showDetectedImages(detected[0], count, "output")
