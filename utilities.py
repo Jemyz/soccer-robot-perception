@@ -21,7 +21,7 @@ def getDev():
     return avDev
 
 
-def showImages(img, iter):
+def showImagesDetection(img, iter):
     img = img / 2 + 0.5  # unnormalize
     img = img.cpu().numpy()
     img = img.transpose((1, 2, 0))
@@ -29,6 +29,13 @@ def showImages(img, iter):
     plt.savefig('./outputs/detected/img_input [' + str(iter) + '].png')
     plt.show()
 
+def showImagesSegmentation(img, iter):
+    img = img / 2 + 0.5  # unnormalize
+    img = img.cpu().numpy()
+    img = img.transpose((1, 2, 0))
+    plt.imshow(img)
+    plt.savefig('./outputs/segmented/img_input [' + str(iter) + '].png')
+    plt.show()
 
 def get_predected_centers(images):
     colorMap = [[255, 0, 0], [0, 0, 255], [0, 255, 0], [255, 255, 255]]

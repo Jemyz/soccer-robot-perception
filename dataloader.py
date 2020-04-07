@@ -7,8 +7,8 @@ import numpy as np
 import torch
 import copy
 
-radius = 5
-numberOfPoints = 500
+radius = 3
+numberOfPoints = 300
 
 
 class CudaVisionDatasetDetection(Dataset):
@@ -72,7 +72,7 @@ class CudaVisionDatasetDetection(Dataset):
                 #bottom center point
                             center_x = int((xmin+xmax)/2)
                             center_y = ymin
-                            target_probabilities = self.gaussian_blob(target_probabilities,2,center_x,radius+3,center_y,radius,numberOfPoints)
+                            target_probabilities = self.gaussian_blob(target_probabilities,2,center_x,radius+2,center_y,radius+2,numberOfPoints)
                             target_center[2][center_x][center_y]=1.0
             #Interchange height and rows to make compatible with input
         target_probabilities = target_probabilities.transpose((0,2,1))

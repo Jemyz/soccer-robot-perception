@@ -18,7 +18,7 @@ avDev = "cpu"
 seed = 1
 setSeed(seed)
 
-from utilities import showImages, showDetectedImages, visualiseSegmented
+from utilities import showImagesDetection,showImagesSegmentation, showDetectedImages, visualiseSegmented
 
 lr = 0.001
 batchSize = 20
@@ -73,19 +73,21 @@ def train():
     best_acc = np.NINF
     epoch = 0
     color_classes = [[255, 0, 0], [0, 0, 255], [0, 255, 0]]
-
+    detlosses = []
+    seglosses = []
     if os.path.exists(checkpoint_path):
         checkpoint = torch.load(checkpoint_path)
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         epoch = checkpoint['epoch'] + 1
-        segloss = checkpoint['seg_loss']
-        detloss = checkpoint['det_loss']
+        seglosses = checkpoint['seglosses']
+        detlosses = checkpoint['detlosses']
         print("Checkpoint Loaded")
-    detlosses = []
-    seglosses = []
+    
+    
     while epoch < epochs:
-
+        detlosstrain = 0
+        seglosstrain = 0
         print("Epoch: ", epoch)
         det_train_acc = 0.0
         seg_train_acc = 0.0
@@ -112,7 +114,7 @@ def train():
                 total_variation_loss = tvLoss.forward(detected)
                 mseloss = criterionDetected(detected, targets)
                 loss = mseloss + total_variation_loss
-                detlosses.append(loss.item())
+                detlosstrain += loss.item()
                 print("Epoch: ", epoch, "step#: ", steps, " Train detection loss: ", loss.item())
                 steps += 1
                 # Getting gradients w.r.t. parameters
@@ -141,18 +143,16 @@ def train():
             total_variation_loss = tvLoss.forward(segmented)
             cross_entropy_loss = criterionSegmented(segmented, targets)
             loss = cross_entropy_loss + total_variation_loss
-            seglosses.append(loss.item())
+            seglosstrain += loss.item()
             print("Epoch: ", epoch, "step#: ", steps, " Train segmentation loss: ", loss.item())
             steps += 1
             # Getting gradients w.r.t. parameters
             loss.backward()
             # Updating parameters
             optimizer.step()
-
+            accuracies = segmentationAccuracy(segmentedLabels.long(), targets, [0, 1, 2])
             seg_train_acc += accuracies[3]
-
-            i += 1
-
+            
         det_train_acc /= len(train_loader_detection)
         seg_train_acc /= len(train_loader_segmentation)
 
@@ -160,7 +160,8 @@ def train():
         seg_val_acc = 0.0
         model.eval()
         steps = 0
-
+        detlosses.append(detlosstrain)
+        seglosses.append(seglosstrain)
         for images, targets, target_centers in validate_loader_detection:
             with torch.no_grad():
                 images = images.to(avDev)
@@ -192,11 +193,9 @@ def train():
             total_variation_loss = tvLoss.forward(segmented)
             entropy_loss = criterionSegmented(segmented, targets.long())
             segloss = entropy_loss + total_variation_loss
-            print("Epoch: ", epoch, "step#: ", steps, " Segmentation Validate loss: ", loss.item())
+            print("Epoch: ", epoch, "step#: ", steps, " Segmentation Validate loss: ", segloss.item())
 
             accuracies = segmentationAccuracy(segmentedLabels.long(), targets, [0, 1, 2])
-            print('Validate Segmentation Accuracy: Background,Line,Field,Total:', accuracies[0], accuracies[1],
-                  accuracies[2], accuracies[3])
             seg_val_acc += accuracies[3]
 
         det_val_acc /= len(validate_loader_detection)
@@ -217,8 +216,8 @@ def train():
                 'epoch': epoch,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-                'det_loss': detloss,
-                'seg_loss': segloss
+                'detlosses': detlosses,
+                'seglosses': seglosses
             }, checkpoint_path)
         elif val_counter < val_patience:
             val_counter += 1
@@ -229,6 +228,7 @@ def train():
         epoch += 1
 
     count = 0
+    num = 0
     plot_learning_curve(detlosses, "detection")
     plot_learning_curve(seglosses, "segmentation")
     det_test_metric = np.zeros((5, len(color_classes)))
@@ -246,14 +246,15 @@ def train():
             mseloss = criterionDetected(detected, targets)
             loss = mseloss + total_variation_loss
             print("Detection Test loss: ", loss.item())
-            ground_truth_centers = get_predected_centers(target_centers)
+            ground_truth_centers = get_predected_centers(target_center)
             colored_images = get_colored_image(detected)
             det_test_metric += det_metrics(ground_truth_centers, colored_images, color_classes)
 
             for j in range(batchSize):
-                showImages(images[j], count + j)
-                showDetectedImages(detected[j], count + j, "output")
-                showDetectedImages(targets[j], count + j, "truth")
+                num +=1
+                showImagesDetection(images[j], num)
+                showDetectedImages(detected[j], num, "output")
+                showDetectedImages(targets[j], num, "truth")
 
     det_test_metric /= len(test_loader_detection)
 
@@ -284,6 +285,8 @@ def train():
 
     accuracies = [0, 0, 0, 0]
     iou = [0, 0, 0, 0]
+    num =0
+    count =0
     for images, targets in test_loader_segmentation:
         count += 1
         model.eval()
@@ -305,9 +308,10 @@ def train():
         accuracies = list(map(add, accuracies, accuracies_returned))
         iou = list(map(add, iou, iou_returned))
         for j in range(batchSize):
-            showImages(images[j], count + j)
-            visualiseSegmented(segmentedLabels[j], count + j, "output")
-            visualiseSegmented(targets[j], count + j, "truth")
+            num+=1
+            showImagesSegmentation(images[j],num)
+            visualiseSegmented(segmentedLabels[j], num, "output")
+            visualiseSegmented(targets[j], num, "truth")
 
     print('Test Segmentation Accuracy: {}.', accuracies[3] / count)
     print('Field Accuracy: ', accuracies[2] / count)
