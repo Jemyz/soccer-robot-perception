@@ -86,9 +86,9 @@ def get_centers(im, classes, thres=25):
 
 
 def det_info(ground_truth_centers, predicted_centers, classes, threshold=10.0):
-    tp = 0
-    fp = 0
-    fn = 0
+    tp = np.zeros((len(classes)))
+    fp = np.zeros((len(classes)))
+    fn = np.zeros((len(classes)))
 
     for j, c in enumerate(classes):
         gts_indicies = np.all(ground_truth_centers[1] == c, axis=-1)
@@ -109,15 +109,18 @@ def det_info(ground_truth_centers, predicted_centers, classes, threshold=10.0):
                                (neighbor_indices[sorted_indices[i]] != neighbor_indices[sorted_indices[i - 1]]
                                 or i == 0) and neighbor_dists[sorted_indices[i]] < threshold]
 
-        tp += len(correct_indices)
-        fp += len(prs_centers) - len(correct_indices)
-        fn += len(gts_centers) - len(correct_indices)
+        tp[j] = (len(correct_indices))
+        fp[j] = (len(prs_centers) - len(correct_indices))
+        fn[j] = (len(gts_centers) - len(correct_indices))
 
     return tp, fp, fn
 
 
-def det_metrics(ground_truth_centers, predicted, classes, threshold=10):
-    batch_tp = batch_fp = batch_fn = 0
+def det_metrics(ground_truth_centers, predicted, classes, threshold=10, tolerance=0.001):
+    batch_tp = np.zeros((len(classes)))
+    batch_fp = np.zeros((len(classes)))
+    batch_fn = np.zeros((len(classes)))
+
     for i in range(len(predicted)):
         predicted_centers = get_centers(predicted[i], classes)
         tp, fp, fn = det_info(ground_truth_centers[i], predicted_centers, classes, threshold)
@@ -125,11 +128,11 @@ def det_metrics(ground_truth_centers, predicted, classes, threshold=10):
         batch_fp += fp
         batch_fn += fn
 
-    accuracy = batch_tp / (batch_tp + batch_fp + batch_fn)
-    recall = batch_tp / (batch_tp + batch_fn)
-    precision = batch_tp / (batch_tp + batch_fp)
-    f1score = 2 * (precision * recall) / (precision + recall)
-    false_rate = 1 - accuracy
+    accuracy = batch_tp / (batch_tp + batch_fp + batch_fn + tolerance)
+    recall = batch_tp / (batch_tp + batch_fn + tolerance)
+    precision = batch_tp / (batch_tp + batch_fp + tolerance)
+    f1score = 2 * (precision * recall) / (precision + recall + tolerance)
+    false_rate = batch_fp + batch_fn / (batch_tp + batch_fp + batch_fn + tolerance)
     return accuracy, recall, precision, f1score, false_rate
 
 
