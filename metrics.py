@@ -153,3 +153,12 @@ def det_confusion_matrix(ground_truth_centers, predicted, classes, threshold=10)
         confusion += confusion_matrix(y_true, y_pred, labels=np.argmax(classes, axis=1))
 
     return confusion
+
+def seg_confusion_matrix(ground_truth,segmented,classes):
+    from sklearn.metrics import confusion_matrix
+    
+    confusion = np.zeros((len(classes), len(classes)))
+    y_true = ground_truth.view(-1)
+    y_pred = segmented.view(-1)
+    confusion = confusion_matrix(y_true, y_pred, labels=classes)
+    return confusion

@@ -21,7 +21,7 @@ setSeed(seed)
 from utilities import showImagesDetection,showImagesSegmentation, showDetectedImages, visualiseSegmented
 
 lr = 0.001
-batchSize = 20
+batchSize = 1
 epochs = 100
 tvweightdetection = 0.000001
 tvweightsegmentation = 0.00001
@@ -52,8 +52,8 @@ test_loader_segmentation = data.__call__(os.path.join(dirSegmentationDataset, 't
                                          listTransforms_test, batchSize)
 
 from model import soccerSegment
-from metrics import det_metrics, segmentationAccuracy, seg_iou
-from utilities import get_colored_image, get_predected_centers
+from metrics import det_metrics, segmentationAccuracy, seg_iou,det_confusion_matrix,seg_confusion_matrix
+from utilities import get_colored_image, get_predected_centers,plot_confusion_matrix
 
 
 def train():
@@ -97,7 +97,7 @@ def train():
         fullDataCovered = 0
         dataiter_detection = train_loader_detection.__iter__()
         dataiter_segmentation = train_loader_segmentation.__iter__()
-
+        
         while (fullDataCovered != 1):
             for i in range(2):
                 try:
@@ -115,7 +115,7 @@ def train():
                 mseloss = criterionDetected(detected, targets)
                 loss = mseloss + total_variation_loss
                 detlosstrain += loss.item()
-                print("Epoch: ", epoch, "step#: ", steps, " Train detection loss: ", loss.item())
+                #print("Epoch: ", epoch, "step#: ", steps, " Train detection loss: ", loss.item())
                 steps += 1
                 # Getting gradients w.r.t. parameters
                 loss.backward()
@@ -125,7 +125,6 @@ def train():
                 ground_truth_centers = get_predected_centers(target_centers)
                 colored_images = get_colored_image(detected)
                 det_train_acc += np.average(det_metrics(ground_truth_centers, colored_images, color_classes)[0])
-
                 i += 1
             try:
                 images, targets = dataiter_segmentation.next()
@@ -144,7 +143,7 @@ def train():
             cross_entropy_loss = criterionSegmented(segmented, targets)
             loss = cross_entropy_loss + total_variation_loss
             seglosstrain += loss.item()
-            print("Epoch: ", epoch, "step#: ", steps, " Train segmentation loss: ", loss.item())
+            #print("Epoch: ", epoch, "step#: ", steps, " Train segmentation loss: ", loss.item())
             steps += 1
             # Getting gradients w.r.t. parameters
             loss.backward()
@@ -155,13 +154,16 @@ def train():
             
         det_train_acc /= len(train_loader_detection)
         seg_train_acc /= len(train_loader_segmentation)
-
+        detlosstrain /= len(train_loader_detection)
+        seglosstrain /= len(train_loader_segmentation)
         det_val_acc = 0.0
         seg_val_acc = 0.0
         model.eval()
         steps = 0
         detlosses.append(detlosstrain)
         seglosses.append(seglosstrain)
+        detlossval = 0
+        seglossval = 0
         for images, targets, target_centers in validate_loader_detection:
             with torch.no_grad():
                 images = images.to(avDev)
@@ -172,8 +174,8 @@ def train():
                 total_variation_loss = tvLoss.forward(detected)
                 mseloss = criterionDetected(detected, targets)
                 detloss = mseloss + total_variation_loss
-
-                print("Epoch: ", epoch, "step#: ", steps, " Detection Validate loss: ", detloss.item())
+                detlossval+=detloss.item()
+                #print("Epoch: ", epoch, "step#: ", steps, " Detection Validate loss: ", detloss.item())
                 steps += 1
 
                 ground_truth_centers = get_predected_centers(target_centers)
@@ -193,19 +195,20 @@ def train():
             total_variation_loss = tvLoss.forward(segmented)
             entropy_loss = criterionSegmented(segmented, targets.long())
             segloss = entropy_loss + total_variation_loss
-            print("Epoch: ", epoch, "step#: ", steps, " Segmentation Validate loss: ", segloss.item())
-
+            #print("Epoch: ", epoch, "step#: ", steps, " Segmentation Validate loss: ", segloss.item())
+            seglossval += segloss.item()
             accuracies = segmentationAccuracy(segmentedLabels.long(), targets, [0, 1, 2])
             seg_val_acc += accuracies[3]
 
         det_val_acc /= len(validate_loader_detection)
         seg_val_acc /= len(validate_loader_segmentation)
-
+        detlossval /= len(validate_loader_detection)
+        seglossval /= len(validate_loader_segmentation)
         print("Epoch: ", epoch, " Finished")
         print("Epoch: ", epoch, " Detection Train Accuracy: ", det_train_acc, " Detection Validation Accuracy: ",
-              det_val_acc)
+              det_val_acc, "Detection Loss Train:",detlosstrain)
         print("Epoch: ", epoch, " Segmentation Train Accuracy: ", det_train_acc,
-              " Segmentation Validation Accuracy: ", seg_val_acc)
+              " Segmentation Validation Accuracy: ", seg_val_acc,"Segmentation Train Accuracy:",seglosstrain)
 
         acc = (det_val_acc + seg_val_acc) / 2
         if acc > best_acc:
@@ -232,6 +235,8 @@ def train():
     plot_learning_curve(detlosses, "detection")
     plot_learning_curve(seglosses, "segmentation")
     det_test_metric = np.zeros((5, len(color_classes)))
+    confusiondet = np.zeros((3,3))
+    confusionseg = np.zeros((3, 3))
     for images, targets, target_center in test_loader_detection:
         count += 1
         model.eval()
@@ -249,7 +254,7 @@ def train():
             ground_truth_centers = get_predected_centers(target_center)
             colored_images = get_colored_image(detected)
             det_test_metric += det_metrics(ground_truth_centers, colored_images, color_classes)
-
+            confusiondet += det_confusion_matrix(ground_truth_centers, colored_images, color_classes)
             for j in range(batchSize):
                 num +=1
                 showImagesDetection(images[j], num)
@@ -257,7 +262,7 @@ def train():
                 showDetectedImages(targets[j], num, "truth")
 
     det_test_metric /= len(test_loader_detection)
-
+    plot_confusion_matrix(confusiondet,"detection")
     print('Test Detection Overall Accuracy: {}.', np.average(det_test_metric[0]))
     print('Ball Accuracy:', det_test_metric[0][0])
     print('Robot Accuracy:', det_test_metric[0][1])
@@ -303,6 +308,7 @@ def train():
             entropy_loss = criterionSegmented(segmented, targets.long())
             loss = entropy_loss + total_variation_loss
             print("Segmentation Test loss: ", loss.item())
+        confusionseg = seg_confusion_matrix(targets,segmentedLabels)
         accuracies_returned = segmentationAccuracy(segmentedLabels.long(), targets, [0, 1, 2])
         iou_returned = seg_iou(targets, segmentedLabels.long(), [0, 1, 2])
         accuracies = list(map(add, accuracies, accuracies_returned))
@@ -312,7 +318,7 @@ def train():
             showImagesSegmentation(images[j],num)
             visualiseSegmented(segmentedLabels[j], num, "output")
             visualiseSegmented(targets[j], num, "truth")
-
+    plot_confusion_matrix(confusionseg,"segmentation")
     print('Test Segmentation Accuracy: {}.', accuracies[3] / count)
     print('Field Accuracy: ', accuracies[2] / count)
     print('Line Accuracy: ', accuracies[1] / count)
