@@ -140,16 +140,17 @@ def det_confusion_matrix(ground_truth_centers, predicted, classes, threshold=10)
     from sklearn.metrics import confusion_matrix
 
     from scipy.spatial import KDTree
-    confusion = np.zeros((len(classes), len(classes)))
+    confusion = np.zeros((len(classes) + 1, len(classes) + 1))
 
     for i in range(len(predicted)):
         predicted_centers = get_centers(predicted[i], classes)
-        ground_truth_centers[i]
-        tree = KDTree(ground_truth_centers[i][0])
-        neighbor_dists, neighbor_indices = tree.query(predicted_centers[0])
+        y_pred = np.ones(len(ground_truth_centers[i][1])) * 3
+        if len(predicted_centers[0]) != 0:
+            tree = KDTree(ground_truth_centers[i][0])
+            neighbor_dists, neighbor_indices = tree.query(predicted_centers[0])
+            y_pred[neighbor_indices] = predicted_centers[1].argmax(axis=1)
 
-        y_true = ground_truth_centers[i][1][neighbor_indices].argmax(axis=1)
-        y_pred = predicted_centers[1].argmax(axis=1)
-        confusion += confusion_matrix(y_true, y_pred, labels=np.argmax(classes, axis=1))
+        y_true = ground_truth_centers[i][1].argmax(axis=1)
+        confusion += confusion_matrix(y_true, y_pred, labels=[0, 1, 2, 3])
 
     return confusion
