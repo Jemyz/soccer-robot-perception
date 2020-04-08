@@ -134,7 +134,7 @@ def det_metrics(ground_truth_centers, predicted, classes, threshold=10, toleranc
     recall = batch_tp / (batch_tp + batch_fn + tolerance)
     precision = batch_tp / (batch_tp + batch_fp + tolerance)
     f1score = 2 * (precision * recall) / (precision + recall + tolerance)
-    false_rate = batch_fp + batch_fn / (batch_tp + batch_fp + batch_fn + tolerance)
+    false_rate = (batch_fp + batch_fn) / (batch_tp + batch_fp + batch_fn + tolerance)
     return accuracy, recall, precision, f1score, false_rate
 
 
