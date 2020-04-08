@@ -55,7 +55,7 @@ def get_centers(im, classes, thres=25):
 
         ret, thresh = cv2.threshold(imgray, 150, 255, 0)
 
-        i, c_contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        c_contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contours.extend(c_contours[1:])
 
     test = np.zeros((closing.shape)) + 255
@@ -135,7 +135,7 @@ def det_metrics(ground_truth_centers, predicted, classes, threshold=10, toleranc
     precision = batch_tp / (batch_tp + batch_fp + tolerance)
     f1score = 2 * (precision * recall) / (precision + recall + tolerance)
     false_rate = batch_fp / (batch_tp + batch_fp + tolerance)
-    return accuracy, recall, precision, f1score, false_rate
+    return np.array([accuracy, recall, precision, f1score, false_rate])
 
 
 def det_confusion_matrix(ground_truth_centers, predicted, classes, threshold=10):
@@ -145,6 +145,8 @@ def det_confusion_matrix(ground_truth_centers, predicted, classes, threshold=10)
     confusion = np.zeros((len(classes) + 1, len(classes) + 1))
 
     for i in range(len(predicted)):
+        if(len(ground_truth_centers[i][0])==0):
+          continue
         predicted_centers = get_centers(predicted[i], classes)
         y_pred = np.ones(len(ground_truth_centers[i][1])) * 3
         if len(predicted_centers[0]) != 0:
