@@ -61,18 +61,21 @@ def showImagesDetection(img, iter):
     img = img / 2 + 0.5  # unnormalize
     img = img.cpu().numpy()
     img = img.transpose((1, 2, 0))
+    plt.axis("off")
     plt.imshow(img)
     plt.savefig('./outputs/detected/img_input [' + str(iter) + '].png')
-    plt.show()
+    #plt.show()
+    
 
 
 def showImagesSegmentation(img, iter):
     img = img / 2 + 0.5  # unnormalize
     img = img.cpu().numpy()
     img = img.transpose((1, 2, 0))
+    plt.axis("off")
     plt.imshow(img)
     plt.savefig('./outputs/segmented/img_input [' + str(iter) + '].png')
-    plt.show()
+    #plt.show()
 
 
 def get_predected_centers(images):
@@ -128,9 +131,11 @@ def showDetectedImages(image, iter, stringName):
             for k in range(3):
                 detImage[k, i, j] = color[k]
     detImage = detImage.transpose((1, 2, 0))
+    plt.axis("off")
     plt.imshow(detImage)
     plt.savefig('./outputs/detected/img_' + stringName + '[' + str(iter) + '].png')
-    plt.show()
+    #plt.show()
+    
 
 
 def visualiseSegmented(segmentedImage, iter, stringName):
@@ -143,9 +148,10 @@ def visualiseSegmented(segmentedImage, iter, stringName):
             for k in range(3):
                 segImage[k, i, j] = color[k]
     segImage = segImage.transpose((1, 2, 0))
+    plt.axis("off")
     plt.imshow(segImage)
     plt.savefig('./outputs/segmented/img_' + stringName + '[' + str(iter) + '].png')
-    plt.show()
+    #plt.show()
 
 
 def plot_learning_curve(loss_errors, task):
