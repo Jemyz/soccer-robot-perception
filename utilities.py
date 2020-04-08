@@ -21,6 +21,23 @@ def getDev():
     return avDev
 
 
+def plot_visuals(ims, gts, prs, name='table.png'):
+    import matplotlib.pyplot as plt
+    f, axarr = plt.subplots(len(ims), 3)
+
+    axarr[0, 0].set_title('Images')
+    axarr[0, 1].set_title('Ground Truths')
+    axarr[0, 2].set_title('Predictions')
+
+    for i in range(len(ims)):
+        axarr[i, 0].imshow(ims[i])
+        axarr[i, 1].imshow(gts[i])
+        axarr[i, 2].imshow(prs[i])
+
+    plt.savefig('./outputs/' + name)
+    plt.show()
+
+
 def showImagesDetection(img, iter):
     img = img / 2 + 0.5  # unnormalize
     img = img.cpu().numpy()
