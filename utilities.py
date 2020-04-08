@@ -20,6 +20,25 @@ def getDev():
         avDev = torch.device("cpu")
     return avDev
 
+def plot_det_seg_visuals(ims, det, seg, name='table.png'):
+    import matplotlib.pyplot as plt
+    f, axarr = plt.subplots(3, len(ims))
+    # axarr[0, 0].set_title('Images')
+    # axarr[0, 1].set_title('Ground Truths')
+    # axarr[0, 2].set_title('Predictions')
+
+    for i in range(len(ims)):
+        axarr[0, i].imshow(ims[i])
+        axarr[1, i].imshow(gts[i])
+        axarr[2, i].imshow(prs[i])
+
+        axarr[0, i].axis('off')
+        axarr[1, i].axis('off')
+        axarr[2, i].axis('off')
+
+    f.tight_layout()
+    plt.savefig('./outputs/' + name)
+    plt.show()
 
 def plot_visuals(ims, gts, prs, name='table.png'):
     import matplotlib.pyplot as plt
