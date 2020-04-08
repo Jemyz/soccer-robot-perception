@@ -29,6 +29,7 @@ def showImagesDetection(img, iter):
     plt.savefig('./outputs/detected/img_input [' + str(iter) + '].png')
     plt.show()
 
+
 def showImagesSegmentation(img, iter):
     img = img / 2 + 0.5  # unnormalize
     img = img.cpu().numpy()
@@ -36,6 +37,7 @@ def showImagesSegmentation(img, iter):
     plt.imshow(img)
     plt.savefig('./outputs/segmented/img_input [' + str(iter) + '].png')
     plt.show()
+
 
 def get_predected_centers(images):
     colorMap = [[255, 0, 0], [0, 0, 255], [0, 255, 0], [255, 255, 255]]
@@ -119,9 +121,10 @@ def plot_learning_curve(loss_errors, task):
     else:
         plt.savefig('./outputs/segmented/curve.png')
 
-def plot_confusion_matrix(conf_matrix,operation,cmap=plt.cm.Blues):
+
+def plot_confusion_matrix(conf_matrix, operation, cmap=plt.cm.Blues, tolerance=0.0001):
     title = 'Normalized confusion matrix'
-    cm = conf_matrix / conf_matrix.sum(axis=1)[:, np.newaxis]
+    cm = conf_matrix / (conf_matrix.sum() + tolerance)
 
     print(cm)
 
@@ -129,9 +132,9 @@ def plot_confusion_matrix(conf_matrix,operation,cmap=plt.cm.Blues):
     im = ax.imshow(cm, interpolation='nearest', cmap=cmap)
     ax.figure.colorbar(im, ax=ax)
     ax.set(
-           title=title,
-           ylabel='True label',
-           xlabel='Predicted label')
+        title=title,
+        ylabel='True label',
+        xlabel='Predicted label')
     fmt = '.2f'
     thresh = cm.max() / 2.
     for i in range(cm.shape[0]):
