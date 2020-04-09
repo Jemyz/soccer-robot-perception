@@ -5,7 +5,7 @@ Packages Required:
 * torch == 1.40
 * pillow == 7.0.0
 * numpy == 1.18.2
-* opencv-python == 4.0.2
+* opencv-python == 4.2.0.34
 * torchvision == 0.5.0
 
 
