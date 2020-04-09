@@ -10,7 +10,7 @@ Packages Required:
 
 
 1. Run main.py which provided with following arguments=
-{
+
     --help,--learning_rate=,--batchSize=,-epochs=,--TVLossWeightDetect,--TVLossWeightSegment,--saveGeneratedImages
 *     --help  for displaying help
 *     --learning_rate for setting desired learning rate
@@ -20,9 +20,9 @@ Packages Required:
 *     --TVLossWeightsegment for setting the weight for total variation loss for segmnetation task
 *     --saveGeneratedImages to save the inputs,ground truths as well as ouputs from training on test dataset
 *     Example Use: python main.py --learning_rate=0.01 --saveGeneratedImages; this command will set learning rate as sepcified and save images generated from model
-*     
+     
 
-}
+
 
 2. Run getResults.py to get the results on test data
 
