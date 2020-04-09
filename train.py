@@ -69,6 +69,8 @@ def train(lr,batchSize,epochs,tvweightdetection,tvweightsegmentation,saveImages)
     color_classes = [[255, 0, 0], [0, 0, 255], [0, 255, 0]]
     detlosses = []
     seglosses = []
+    valdetlosses = []
+    valseglosses = []
     print("Load saved model if any")
     if os.path.exists(checkpoint_path):
         checkpoint = torch.load(checkpoint_path)
@@ -199,6 +201,8 @@ def train(lr,batchSize,epochs,tvweightdetection,tvweightsegmentation,saveImages)
         seg_val_acc /= len(validate_loader_segmentation)
         detlossval /= len(validate_loader_detection)
         seglossval /= len(validate_loader_segmentation)
+        valdetlosses.append(detlossval)
+        valseglosses.append(seglossval)
         print("Epoch: ", epoch, " Finished")
         print("Epoch: ", epoch, " Detection Train Accuracy: ", det_train_acc, " Detection Validation Accuracy: ",
               det_val_acc, "Detection Loss Train:",detlosstrain)
