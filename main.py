@@ -17,6 +17,7 @@ def help():
     print("--TVLossWeightsegment for setting the weight for total variation loss for segmnetation task")
     print("--saveGeneratedImages to save the inputs,ground truths as well as ouputs from training on test dataset")
     print("Example Use: python main.py --learning_rate=0.01 --saveGeneratedImages; this command will set learning rate as sepcified and save images generated from model")
+    sys.exit(0)
     
 def main():
     #Assign some defaults
@@ -31,7 +32,6 @@ def main():
         for opt, arg in opts:
             if opt in ("-h", "--help"):
                help()
-               exit()
             elif opt in ("--learning_rate"):
                learning_rate = float(arg)
             elif opt in ("--batchSize"):
@@ -48,7 +48,7 @@ def main():
                 help()
         train(learning_rate,batchSize,epochs,tvlossweightdetect,tvlossweightsegment,saveImages)
     except:
-        help()
+        print("Check help")
     
     
     
