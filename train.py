@@ -1,4 +1,3 @@
-
 import torch
 import torch.nn as nn
 import numpy as np
@@ -226,8 +225,8 @@ def train(lr,batchSize,epochs,tvweightdetection,tvweightsegmentation,saveImages)
 
     count = 0
     num = 0
-    plot_learning_curve(detlosses, "detection")
-    plot_learning_curve(seglosses, "segmentation")
+    plot_learning_curve(detlosses,valdetlosses, "detection")
+    plot_learning_curve(seglosses,valseglosses, "segmentation")
     det_test_metric = np.zeros((5, len(color_classes)))
     confusiondet = np.zeros((4,4))
     confusionseg = np.zeros((3, 3))
