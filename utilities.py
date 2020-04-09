@@ -20,6 +20,7 @@ def getDev():
         avDev = torch.device("cpu")
     return avDev
 
+
 def plot_det_seg_visuals(ims, det, seg, name='table.png'):
     import matplotlib.pyplot as plt
     f, axarr = plt.subplots(3, len(ims))
@@ -29,8 +30,8 @@ def plot_det_seg_visuals(ims, det, seg, name='table.png'):
 
     for i in range(len(ims)):
         axarr[0, i].imshow(ims[i])
-        axarr[1, i].imshow(gts[i])
-        axarr[2, i].imshow(prs[i])
+        axarr[1, i].imshow(det[i])
+        axarr[2, i].imshow(seg[i])
 
         axarr[0, i].axis('off')
         axarr[1, i].axis('off')
@@ -39,6 +40,7 @@ def plot_det_seg_visuals(ims, det, seg, name='table.png'):
     f.tight_layout()
     plt.savefig('./outputs/' + name)
     plt.show()
+
 
 def plot_visuals(ims, gts, prs, name='table.png'):
     import matplotlib.pyplot as plt
@@ -63,9 +65,8 @@ def showImagesDetection(img, iter):
     img = img.transpose((1, 2, 0))
     plt.axis("off")
     plt.imshow(img)
-    plt.savefig('./outputs/detected/img_input [' + str(iter) + '].png')
-    #plt.show()
-    
+    plt.savefig('./outputs/detected/img_' + '[' + str(iter) + ']' + '_input.png')
+    # plt.show()
 
 
 def showImagesSegmentation(img, iter):
@@ -74,8 +75,8 @@ def showImagesSegmentation(img, iter):
     img = img.transpose((1, 2, 0))
     plt.axis("off")
     plt.imshow(img)
-    plt.savefig('./outputs/segmented/img_input [' + str(iter) + '].png')
-    #plt.show()
+    plt.savefig('./outputs/segmented/img_' + '[' + str(iter) + ']' + '_input.png')
+    # plt.show()
 
 
 def get_predected_centers(images):
@@ -133,9 +134,8 @@ def showDetectedImages(image, iter, stringName):
     detImage = detImage.transpose((1, 2, 0))
     plt.axis("off")
     plt.imshow(detImage)
-    plt.savefig('./outputs/detected/img_' + stringName + '[' + str(iter) + '].png')
-    #plt.show()
-    
+    plt.savefig('./outputs/detected/img_' + '[' + str(iter) + ']_' + stringName + '.png')
+    # plt.show()
 
 
 def visualiseSegmented(segmentedImage, iter, stringName):
@@ -150,8 +150,8 @@ def visualiseSegmented(segmentedImage, iter, stringName):
     segImage = segImage.transpose((1, 2, 0))
     plt.axis("off")
     plt.imshow(segImage)
-    plt.savefig('./outputs/segmented/img_' + stringName + '[' + str(iter) + '].png')
-    #plt.show()
+    plt.savefig('./outputs/segmented/img_' + '[' + str(iter) + ']_' + stringName + '.png')
+    # plt.show()
 
 
 def plot_learning_curve(loss_errors, task):
