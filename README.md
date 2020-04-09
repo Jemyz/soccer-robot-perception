@@ -27,10 +27,11 @@ Packages Required:
 2. Run getResults.py to get the results on test data
 
 3 .Run instanceInference.py to get instance results .Specify the folder name which contains images to be tested
-{
-    --folderName for specifying the folder which contains the files
-    Example Use: python instanceInference.py --folderName="./sample_images"
-}
+
+*     --folderName for specifying the folder which contains the files
+*     Example Use: python instanceInference.py --folderName="./sample_images"
+
+
 
 
 
