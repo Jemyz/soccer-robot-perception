@@ -21,6 +21,19 @@ def getDev():
     return avDev
 
 
+def reduce_brightness(img, value=60):
+    import cv2
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    h, s, v = cv2.split(hsv)
+
+    v[v < value] = 0
+    v[v >= value] -= value
+
+    final_hsv = cv2.merge((h, s, v))
+    img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
+    return img
+
+
 def plot_det_seg_visuals(ims, det, seg, name='table.png'):
     import matplotlib.pyplot as plt
     f, axarr = plt.subplots(3, len(ims))
@@ -46,14 +59,18 @@ def plot_visuals(ims, gts, prs, name='table.png'):
     import matplotlib.pyplot as plt
     f, axarr = plt.subplots(len(ims), 3)
 
-    axarr[0, 0].set_title('Images')
-    axarr[0, 1].set_title('Ground Truths')
-    axarr[0, 2].set_title('Predictions')
+    # axarr[0, 0].set_title('Images')
+    # axarr[0, 1].set_title('Ground Truths')
+    # axarr[0, 2].set_title('Predictions')
 
     for i in range(len(ims)):
         axarr[i, 0].imshow(ims[i])
         axarr[i, 1].imshow(gts[i])
         axarr[i, 2].imshow(prs[i])
+
+        axarr[i, 0].axis('off')
+        axarr[i, 1].axis('off')
+        axarr[i, 2].axis('off')
 
     plt.savefig('./outputs/' + name)
     plt.show()
@@ -126,7 +143,7 @@ def showDetectedImages(image, iter, stringName):
     for i in range(size[0]):
         for j in range(size[1]):
             if (values[i][j] == 0):
-                color = color = colorMap[3]
+                color = colorMap[3]
             else:
                 color = colorMap[int(imageClasses[i][j])]
             for k in range(3):
