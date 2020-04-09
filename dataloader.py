@@ -7,6 +7,7 @@ import numpy as np
 import torch
 import copy
 
+#Define gaussian blob size and density
 radius = 3
 numberOfPoints = 300
 
@@ -19,15 +20,13 @@ class CudaVisionDatasetDetection(Dataset):
         self.transform = transform
      
     def __getitem__(self, index):
-        
+
+        #Get input image
         input_img = Image.open(self.img_paths[index])
-        
-        #print(input_img.size)
-        #showImages(input_img)
         input_img = transforms.functional.resize(input_img,(480,640))
-        #showImages(input_img)
         trnfm_input = transformations(self.transform)
         input_img = trnfm_input(input_img)
+        #Get target image from xml
         target_xml = ET.parse(self.target_paths[index])
         root = target_xml.getroot()
         object_name = "dummy"
@@ -63,23 +62,23 @@ class CudaVisionDatasetDetection(Dataset):
                             target_probabilities = self.gaussian_blob(target_probabilities,0,center_x,radius,center_y,radius,numberOfPoints)
                             target_center[0][center_x][center_y]=1.0
                         if(object_name == "goalpost"):
-                #need bottom center point
                             center_x = int((xmin+xmax)/2)
                             center_y = ymin
                             target_probabilities = self.gaussian_blob(target_probabilities,1,center_x,radius,center_y,radius,numberOfPoints)
                             target_center[1][center_x][center_y]=1.0
                         if(object_name == "robot"):
-                #bottom center point
                             center_x = int((xmin+xmax)/2)
                             center_y = ymin
                             target_probabilities = self.gaussian_blob(target_probabilities,2,center_x,radius+2,center_y,radius+2,numberOfPoints)
                             target_center[2][center_x][center_y]=1.0
-            #Interchange height and rows to make compatible with input
+        #Interchange height and rows to make compatible with input
         target_probabilities = target_probabilities.transpose((0,2,1))
         target = torch.from_numpy(target_probabilities)
         target_center = target_center.transpose((0,2,1))
         target_center = torch.from_numpy(target_center)
         return input_img,target.float(),target_center
+
+
     def gaussian_blob(self,img,classPassed, mean_x, sigma_x, mean_y, sigma_y, number_of_points):
         indicies_x = np.random.normal(mean_x, sigma_x, number_of_points).astype(int)
         indicies_y = np.random.normal(mean_y, sigma_y, number_of_points).astype(int)
@@ -91,15 +90,11 @@ class CudaVisionDatasetDetection(Dataset):
         indicies = [indicies_x, indicies_y]
         img[classPassed][indicies] = 1.0
         return img 
+
+
     def __len__(self):
         return len(self.target_paths)
     
-
-
-
-# In[136]:
-
-
 def read_files(img_dir_path):
     img_paths = []
     target_paths = []
@@ -133,11 +128,7 @@ class CudaVisionDatasetSegmentation(Dataset):
     def __getitem__(self, index):
         
         input_img = Image.open(self.img_paths[index])
-        
-        #print(input_img.size)
-        #showImages(input_img)
         input_img = transforms.functional.resize(input_img,(480,640))
-        #showImages(input_img)
         target_img = Image.open(self.target_paths[index])
         
         target_img = transforms.functional.resize(target_img,(120,160))
@@ -146,7 +137,6 @@ class CudaVisionDatasetSegmentation(Dataset):
             trnfm_input = transformations(self.transform)
             input_img = trnfm_input(input_img)
             target_transform  = copy.copy(self.transform)
-            
             target_transform.pop()
             trnfm_target= transformations(target_transform)
             target_img1  = trnfm_target(target_img)

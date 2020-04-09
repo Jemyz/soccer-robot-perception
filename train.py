@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
 
 import torch
 import torch.nn as nn
@@ -12,52 +10,49 @@ from tvloss import TVLossDetect, TVLossSegment
 from utilities import getDev, setSeed, plot_learning_curve
 from operator import add
 
-avDev = getDev()
-print(avDev)
-avDev = "cpu"
-seed = 1
-setSeed(seed)
 
-from utilities import showImagesDetection,showImagesSegmentation, showDetectedImages, visualiseSegmented
 
-lr = 0.001
-batchSize = 1
-epochs = 100
-tvweightdetection = 0.000001
-tvweightsegmentation = 0.00001
+def train(lr,batchSize,epochs,tvweightdetection,tvweightsegmentation,saveImages):
+    avDev = getDev()
+    print(avDev)
 
-from dataloader import CudaVisionDataLoader
+    seed = 1
+    setSeed(seed)
 
-listTransforms_train = [transforms.ToTensor(), transforms.Normalize(mean=[0.5, 0.5, 0.5],
-                                                                    std=[0.5, 0.5, 0.5])]
-listTransforms_test = [transforms.ToTensor(), transforms.Normalize(mean=[0.5, 0.5, 0.5],
-                                                                   std=[0.5, 0.5, 0.5])]
+    from utilities import showImagesDetection,showImagesSegmentation, showDetectedImages, visualiseSegmented
 
-data = CudaVisionDataLoader()
-parentDir = './small_data'
-dirDetectionDataset = os.path.join(parentDir, 'detection')
-dirSegmentationDataset = os.path.join(parentDir, 'segmentation')
 
-train_loader_detection = data.__call__(os.path.join(dirDetectionDataset, 'train'), "detection", listTransforms_train,
-                                       batchSize)
-validate_loader_detection = data.__call__(os.path.join(dirDetectionDataset, 'validate'), "detection",
-                                          listTransforms_test, batchSize)
-test_loader_detection = data.__call__(os.path.join(dirDetectionDataset, 'test'), "detection", listTransforms_test,
-                                      batchSize)
-train_loader_segmentation = data.__call__(os.path.join(dirSegmentationDataset, 'train'), "segmentation",
-                                          listTransforms_train, batchSize)
-validate_loader_segmentation = data.__call__(os.path.join(dirSegmentationDataset, 'validate'), "segmentation",
+    from dataloader import CudaVisionDataLoader
+
+    listTransforms_train = [transforms.ToTensor(), transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                                                        std=[0.5, 0.5, 0.5])]
+    listTransforms_test = [transforms.ToTensor(), transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                                                       std=[0.5, 0.5, 0.5])]
+
+    data = CudaVisionDataLoader()
+    parentDir = './small_data'
+    dirDetectionDataset = os.path.join(parentDir, 'detection')
+    dirSegmentationDataset = os.path.join(parentDir, 'segmentation')
+
+    train_loader_detection = data.__call__(os.path.join(dirDetectionDataset, 'train'), "detection", listTransforms_train,
+                                           batchSize)
+    validate_loader_detection = data.__call__(os.path.join(dirDetectionDataset, 'validate'), "detection",
+                                              listTransforms_test, batchSize)
+    test_loader_detection = data.__call__(os.path.join(dirDetectionDataset, 'test'), "detection", listTransforms_test,
+                                          batchSize)
+    train_loader_segmentation = data.__call__(os.path.join(dirSegmentationDataset, 'train'), "segmentation",
+                                              listTransforms_train, batchSize)
+    validate_loader_segmentation = data.__call__(os.path.join(dirSegmentationDataset, 'validate'), "segmentation",
+                                                 listTransforms_test, batchSize)
+    test_loader_segmentation = data.__call__(os.path.join(dirSegmentationDataset, 'test'), "segmentation",
                                              listTransforms_test, batchSize)
-test_loader_segmentation = data.__call__(os.path.join(dirSegmentationDataset, 'test'), "segmentation",
-                                         listTransforms_test, batchSize)
 
-from model import soccerSegment
-from metrics import det_metrics, segmentationAccuracy, seg_iou,det_confusion_matrix,seg_confusion_matrix
-from utilities import get_colored_image, get_predected_centers,plot_confusion_matrix
+    from model import soccerSegment
+    from metrics import det_metrics, segmentationAccuracy, seg_iou,det_confusion_matrix,seg_confusion_matrix
+    from utilities import get_colored_image, get_predected_centers,plot_confusion_matrix
 
-
-def train():
     import torchvision.models as models
+    print("Loading pretrained ResNet18")
     resnet18 = models.resnet18(pretrained=True)
     model = soccerSegment(resnet18, [5, 6, 7, 8], [64, 128, 256, 256, 0], [512, 256, 256, 128], [512, 512, 256], 256)
     model.to(avDev)
@@ -68,13 +63,14 @@ def train():
 
     checkpoint_path = './checkpoints/checkpoint'
 
-    val_patience = 5
+    val_patience = 10
     val_counter = 0
     best_acc = np.NINF
     epoch = 0
     color_classes = [[255, 0, 0], [0, 0, 255], [0, 255, 0]]
     detlosses = []
     seglosses = []
+    print("Load saved model if any")
     if os.path.exists(checkpoint_path):
         checkpoint = torch.load(checkpoint_path)
         model.load_state_dict(checkpoint['model_state_dict'])
@@ -84,7 +80,9 @@ def train():
         detlosses = checkpoint['detlosses']
         print("Checkpoint Loaded")
     
-    
+    print("Specified epochs for training: ",epoch," The patience value for early stopping: ",val_patience,
+          "Batch Size: ",batchSize," Learning Rate: ",lr)
+    print("Starting training")
     while epoch < epochs:
         detlosstrain = 0
         seglosstrain = 0
@@ -99,7 +97,7 @@ def train():
         dataiter_segmentation = train_loader_segmentation.__iter__()
         
         while (fullDataCovered != 1):
-            for i in range(2):
+            for i in range(4):
                 try:
                     images, targets, target_centers = dataiter_detection.next()
                 except:
@@ -115,7 +113,6 @@ def train():
                 mseloss = criterionDetected(detected, targets)
                 loss = mseloss + total_variation_loss
                 detlosstrain += loss.item()
-                #print("Epoch: ", epoch, "step#: ", steps, " Train detection loss: ", loss.item())
                 steps += 1
                 # Getting gradients w.r.t. parameters
                 loss.backward()
@@ -143,7 +140,6 @@ def train():
             cross_entropy_loss = criterionSegmented(segmented, targets)
             loss = cross_entropy_loss + total_variation_loss
             seglosstrain += loss.item()
-            #print("Epoch: ", epoch, "step#: ", steps, " Train segmentation loss: ", loss.item())
             steps += 1
             # Getting gradients w.r.t. parameters
             loss.backward()
@@ -155,6 +151,7 @@ def train():
         seg_train_acc /= len(train_loader_segmentation)
         detlosstrain /= len(train_loader_detection)
         seglosstrain /= len(train_loader_segmentation)
+        print("Training finished , starting with validation")
         det_val_acc = 0.0
         seg_val_acc = 0.0
         model.eval()
@@ -174,7 +171,6 @@ def train():
                 mseloss = criterionDetected(detected, targets)
                 detloss = mseloss + total_variation_loss
                 detlossval+=detloss.item()
-                #print("Epoch: ", epoch, "step#: ", steps, " Detection Validate loss: ", detloss.item())
                 steps += 1
 
                 ground_truth_centers = get_predected_centers(target_centers)
@@ -194,7 +190,6 @@ def train():
             total_variation_loss = tvLoss.forward(segmented)
             entropy_loss = criterionSegmented(segmented, targets.long())
             segloss = entropy_loss + total_variation_loss
-            #print("Epoch: ", epoch, "step#: ", steps, " Segmentation Validate loss: ", segloss.item())
             seglossval += segloss.item()
             accuracies = segmentationAccuracy(segmentedLabels.long(), targets, [0, 1, 2])
             seg_val_acc += accuracies[3]
@@ -234,8 +229,10 @@ def train():
     plot_learning_curve(detlosses, "detection")
     plot_learning_curve(seglosses, "segmentation")
     det_test_metric = np.zeros((5, len(color_classes)))
-    confusiondet = np.zeros((3,3))
+    confusiondet = np.zeros((4,4))
     confusionseg = np.zeros((3, 3))
+    print("Training finished starting with testdatatset")
+    print("Starting with detection")
     for images, targets, target_center in test_loader_detection:
         count += 1
         model.eval()
@@ -254,11 +251,12 @@ def train():
             colored_images = get_colored_image(detected)
             det_test_metric += det_metrics(ground_truth_centers, colored_images, color_classes)
             confusiondet += det_confusion_matrix(ground_truth_centers, colored_images, color_classes)
-            for j in range(batchSize):
-                num +=1
-                showImagesDetection(images[j], num)
-                showDetectedImages(detected[j], num, "output")
-                showDetectedImages(targets[j], num, "truth")
+            if(saveImages):
+                for j in range(batchSize):
+                    num +=1
+                    showImagesDetection(images[j], num)
+                    showDetectedImages(detected[j], num, "output")
+                    showDetectedImages(targets[j], num, "truth")
 
     det_test_metric /= len(test_loader_detection)
     plot_confusion_matrix(confusiondet,"detection")
@@ -312,11 +310,12 @@ def train():
         iou_returned = seg_iou(targets, segmentedLabels.long(), [0, 1, 2])
         accuracies = list(map(add, accuracies, accuracies_returned))
         iou = list(map(add, iou, iou_returned))
-        for j in range(batchSize):
-            num+=1
-            showImagesSegmentation(images[j],num)
-            visualiseSegmented(segmentedLabels[j], num, "output")
-            visualiseSegmented(targets[j], num, "truth")
+        if(saveImages):
+            for j in range(batchSize):
+                num+=1
+                showImagesSegmentation(images[j],num)
+                visualiseSegmented(segmentedLabels[j], num, "output")
+                visualiseSegmented(targets[j], num, "truth")
     plot_confusion_matrix(confusionseg,"segmentation")
     print('Test Segmentation Accuracy: {}.', accuracies[3] / count)
     print('Field Accuracy: ', accuracies[2] / count)
@@ -328,4 +327,4 @@ def train():
     print('Iou Background: ', iou[0] / count)
 
 
-train()
+

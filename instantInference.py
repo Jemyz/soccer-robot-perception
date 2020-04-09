@@ -45,9 +45,9 @@ for r, _, f in os.walk(folder_with_images):
         image = Image.open(os.path.join(r, file))
         transformed_image = transform_input(image)
         segmented,detected = model(torch.unsqueeze(transformed_image,0))
-        inputs.append(saveImagesInference(transformed_image,folder_with_images))
-        det.append(saveDetectedInference(detected[0],folder_with_images))
-        seg.append(saveSegmentedInference(segmented[0],folder_with_images))
+        inputs.append(saveImagesInference(transformed_image))
+        det.append(saveDetectedInference(detected[0]))
+        seg.append(saveSegmentedInference(segmented[0]))
 plot_det_seg_visualsInference(inputs,det,seg,folder_with_images,"outputs.png")
     
         

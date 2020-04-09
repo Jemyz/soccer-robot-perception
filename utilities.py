@@ -107,7 +107,7 @@ def showImagesSegmentation(img, iter):
     plt.imshow(img)
     plt.savefig('./outputs/segmented/img_' + '[' + str(iter) + ']' + '_input.png')
     # plt.show()
-def saveImagesInference(img, folder):
+def saveImagesInference(img):
     img = img / 2 + 0.5  # unnormalize
     img = img.cpu().numpy()
     img = img.transpose((1, 2, 0))
@@ -174,7 +174,7 @@ def showDetectedImages(image, iter, stringName):
     plt.savefig('./outputs/detected/img_' + '[' + str(iter) + ']_' + stringName + '.png')
     # plt.show()
 
-def saveDetectedInference(image,folder):
+def saveDetectedInference(image):
     image[image < 0.5] = 0
     values, imageClasses = torch.max(image, dim=0)
     colorMap = [[255, 0, 0], [0, 0, 255], [0, 255, 0], [255, 255, 255]]
@@ -207,9 +207,9 @@ def visualiseSegmented(segmentedImage, iter, stringName):
     plt.axis("off")
     plt.imshow(segImage)
     plt.savefig('./outputs/segmented/img_' + '[' + str(iter) + ']_' + stringName + '.png')
-    plt.show()
+    #plt.show()
 
-def saveSegmentedInference(image,folder):
+def saveSegmentedInference(image):
     segmentedImage = torch.argmax(image,dim=0)
     colorMap = [[0, 0, 0], [255, 255, 255], [0, 255, 0]]
     size = segmentedImage.size()

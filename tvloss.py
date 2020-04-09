@@ -25,7 +25,6 @@ class TVLossDetect(nn.Module):
 
     def forward(self,x):
         batch_size = x.size()[0]
-        #Ignored line segmentation in calculations
         h_tv = (torch.abs(x[:,:,1:,:]-x[:,:,:-1,:])).sum()
         w_tv = (torch.abs(x[:,:,:,1:]-x[:,:,:,:-1])).sum()
         return self.TVLoss_weight*(h_tv+w_tv)/batch_size
