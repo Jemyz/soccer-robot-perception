@@ -228,7 +228,7 @@ def plot_learning_curve(loss_errors,val_losses,task):
     plt.xlabel("Iterations")
     plt.ylabel("Loss")
     plt.plot(np.array(loss_errors),'b',label="train_losses")
-    plt.plot(np.array(loss_errors),'r',label="validate_losses")
+    plt.plot(np.array(val_losses),'r',label="validate_losses")
     plt.legend()
     if (task == "detection"):
         plt.savefig('./outputs/detected/curve.png')
