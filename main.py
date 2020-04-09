@@ -47,7 +47,7 @@ def main():
                 help()
         train(learning_rate,batchSize,epochs,tvlossweightdetect,tvlossweightsegment,saveImages)
     except:
-        print("Command not correct print help")
+        help()
     
     
     
