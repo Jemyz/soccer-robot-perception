@@ -31,6 +31,7 @@ def main():
         for opt, arg in opts:
             if opt in ("-h", "--help"):
                help()
+               exit()
             elif opt in ("--learning_rate"):
                learning_rate = float(arg)
             elif opt in ("--batchSize"):
