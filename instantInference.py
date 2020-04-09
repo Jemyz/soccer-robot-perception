@@ -37,7 +37,6 @@ transform_input = transforms.Compose([transforms.ToTensor(), transforms.Normaliz
                                                                     std=[0.5, 0.5, 0.5])])   
 folder_with_images = './sample_images'
 
-num =0 
 inputs=[]
 det =[]
 seg =[]
@@ -46,10 +45,9 @@ for r, _, f in os.walk(folder_with_images):
         image = Image.open(os.path.join(r, file))
         transformed_image = transform_input(image)
         segmented,detected = model(torch.unsqueeze(transformed_image,0))
-        inputs.append(saveImagesInference(transformed_image,folder_with_images,num))
-        det.append(saveDetectedInference(detected[0],folder_with_images,num))
-        seg.append(saveSegmentedInference(segmented[0],folder_with_images,num))
-        num+=1
+        inputs.append(saveImagesInference(transformed_image,folder_with_images))
+        det.append(saveDetectedInference(detected[0],folder_with_images))
+        seg.append(saveSegmentedInference(segmented[0],folder_with_images))
 plot_det_seg_visualsInference(inputs,det,seg,folder_with_images,"outputs.png")
     
         

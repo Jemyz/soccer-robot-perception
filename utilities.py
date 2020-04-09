@@ -57,9 +57,6 @@ def plot_det_seg_visualsInference(ims, det, seg,folder, name='table.png'):
     import matplotlib.pyplot as plt
     plt.close()
     f, axarr = plt.subplots(3, len(ims))
-    # axarr[0, 0].set_title('Images')
-    # axarr[0, 1].set_title('Ground Truths')
-    # axarr[0, 2].set_title('Predictions')
 
     for i in range(len(ims)):
         axarr[0, i].imshow(ims[i])
@@ -78,10 +75,6 @@ def plot_det_seg_visualsInference(ims, det, seg,folder, name='table.png'):
 def plot_visuals(ims, gts, prs, name='table.png'):
     import matplotlib.pyplot as plt
     f, axarr = plt.subplots(len(ims), 3)
-
-    # axarr[0, 0].set_title('Images')
-    # axarr[0, 1].set_title('Ground Truths')
-    # axarr[0, 2].set_title('Predictions')
 
     for i in range(len(ims)):
         axarr[i, 0].imshow(ims[i])
@@ -114,7 +107,7 @@ def showImagesSegmentation(img, iter):
     plt.imshow(img)
     plt.savefig('./outputs/segmented/img_' + '[' + str(iter) + ']' + '_input.png')
     # plt.show()
-def saveImagesInference(img, folder,iter):
+def saveImagesInference(img, folder):
     img = img / 2 + 0.5  # unnormalize
     img = img.cpu().numpy()
     img = img.transpose((1, 2, 0))
@@ -181,7 +174,7 @@ def showDetectedImages(image, iter, stringName):
     plt.savefig('./outputs/detected/img_' + '[' + str(iter) + ']_' + stringName + '.png')
     # plt.show()
 
-def saveDetectedInference(image,folder,num):
+def saveDetectedInference(image,folder):
     image[image < 0.5] = 0
     values, imageClasses = torch.max(image, dim=0)
     colorMap = [[255, 0, 0], [0, 0, 255], [0, 255, 0], [255, 255, 255]]
@@ -214,9 +207,9 @@ def visualiseSegmented(segmentedImage, iter, stringName):
     plt.axis("off")
     plt.imshow(segImage)
     plt.savefig('./outputs/segmented/img_' + '[' + str(iter) + ']_' + stringName + '.png')
-    # plt.show()
+    plt.show()
 
-def saveSegmentedInference(image,folder,num):
+def saveSegmentedInference(image,folder):
     segmentedImage = torch.argmax(image,dim=0)
     colorMap = [[0, 0, 0], [255, 255, 255], [0, 255, 0]]
     size = segmentedImage.size()
@@ -245,7 +238,6 @@ def plot_confusion_matrix(conf_matrix, operation, cmap=plt.cm.Blues, tolerance=0
     title = 'Normalized confusion matrix'
     cm = conf_matrix / (conf_matrix.sum() + tolerance)
 
-    print(cm)
 
     fig, ax = plt.subplots()
     im = ax.imshow(cm, interpolation='nearest', cmap=cmap)
