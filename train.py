@@ -77,6 +77,8 @@ def train(lr,batchSize,epochs,tvweightdetection,tvweightsegmentation,saveImages)
         epoch = checkpoint['epoch'] + 1
         seglosses = checkpoint['seglosses']
         detlosses = checkpoint['detlosses']
+        valseglosses = checkpoint['valseglosses']
+        valdetlosses = checkpoint['valdetlosses']
         print("Checkpoint Loaded")
     
     print("Specified epochs for training: ",epoch," The patience value for early stopping: ",val_patience,
@@ -213,7 +215,9 @@ def train(lr,batchSize,epochs,tvweightdetection,tvweightsegmentation,saveImages)
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'detlosses': detlosses,
-                'seglosses': seglosses
+                'seglosses': seglosses,
+                'valdetlosses': valdetlosses,
+                'valseglosses':valseglosses
             }, checkpoint_path)
         elif val_counter < val_patience:
             val_counter += 1
