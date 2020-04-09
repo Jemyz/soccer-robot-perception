@@ -1,64 +1,58 @@
-from xml.dom import minidom
-import xml.etree.ElementTree as ET
-from PIL import Image
-import cv2
 import os,fnmatch,shutil
-import numpy as np
-# parse an xml file by name
-directory = "C:\\Users\Sarah Khan\Downloads\\bigcuda5.informatik.uni-bonn.de+8686\\blob\dataset"
-for file in os.listdir(directory):
-    if fnmatch.fnmatch(file,"*.jpg"):
-        shutil.copy(os.path.join(directory,file),os.path.join("C:\\Users\Sarah Khan\Downloads\data\input",file))
-    if fnmatch.fnmatch(file,"*.png"):
+directory = "C:\\Users\Sarah Khan\Downloads\small_data\detection"
+directory_source = "C:\\Users\Sarah Khan\Downloads\\bigcuda5.informatik.uni-bonn.de+8686\\blob"
+folder = "train"
+count =0
+flag=0
+num=1
+chance =1
+for file in os.listdir(os.path.join(directory_source,"dataset")):
+    if fnmatch.fnmatch(file, "*.jpg") or fnmatch.fnmatch(file,"*.png"):
+        flag=0
+        for file1 in os.listdir(os.path.join(directory_source,"dataset")):
+            base = os.path.splitext(file)[0]
+            if(file1 == base+".xml" ):
+                flag=1
+                try:
+                    shutil.copy(os.path.join(directory_source,"dataset", file),
+                            os.path.join(directory,folder,"input", file))
+                except EnvironmentError:
+                    print("Error happened")
+                    print(file)
+                    exit()
+                else:
+                    print("OK")
+                try:
+                    shutil.copy(os.path.join(directory_source,"dataset", file1),
+                            os.path.join(directory, folder, "output", file1))
+                except EnvironmentError:
+                    print("Error happened")
+                    print(file1)
+                    exit()
+                else:
+                    print("OK")
 
-        shutil.copy(os.path.join(directory,file), os.path.join("C:\\Users\Sarah Khan\Downloads\data\input", file))
-    if fnmatch.fnmatch(file,"*.xml"):
+                print(file)
+                print(file1)
+                count = count+1
+                if(count%7==0 and folder=="train"):
+                    count =0
+                    folder = "validate"
+                    if(num == 1):
+                        num =2
+                    else:
+                        num = 1
+                    break
+                if(count%num==0 and folder=="validate"):
+                    count = 0
+                    folder = "test"
+                    break
+                if (count % num == 0 and folder == "test"):
+                    count = 0
+                    folder = "train"
+                    break
+                break
 
-        mydoc = minidom.parse(os.path.join(directory,file))
-        width = mydoc.getElementsByTagName('width')
-        height = mydoc.getElementsByTagName('height')
-        depth = mydoc.getElementsByTagName('depth')
-        xmins = mydoc.getElementsByTagName('xmin')
-        xmaxs = mydoc.getElementsByTagName('xmax')
-        ymins = mydoc.getElementsByTagName('ymin')
-        ymaxs = mydoc.getElementsByTagName('ymax')
-        names = mydoc.getElementsByTagName('name')
-        fileName = mydoc.getElementsByTagName('filename')
-        colors = {'R':(0,0,255),'G':(0,255,0),'B':(255,0,0)}
 
-        img = np.zeros([int(width[0].firstChild.data),int(height[0].firstChild.data),int(depth[0].firstChild.data)],dtype=np.uint8)
-        img.fill(255)
-        window_name = 'Image'
-        im = Image.fromarray(img)
-        im.save(os.path.join("C:\\Users\Sarah Khan\Downloads\\data\output",fileName[0].firstChild.data)+".jpg")
-        i=0
-        for name in names:
 
-            image = cv2.imread(os.path.join("C:\\Users\Sarah Khan\Downloads\\data\output", fileName[0].firstChild.data) + ".jpg")
-            #cv2.imshow(window_name, image)
-            if name.firstChild.data == "ball":
-                color = colors['R']
-                center_x = int((int(xmins[i].firstChild.data)+int(xmaxs[i].firstChild.data))/2)
-                center_y = int((int(ymins[i].firstChild.data)+int(ymaxs[i].firstChild.data))/2)
-                image = cv2.circle(image, (center_x,center_y), 5, color, -1)
-                #cv2.imshow(window_name,image)
-                cv2.imwrite(os.path.join("C:\\Users\Sarah Khan\Downloads\\data\output",fileName[0].firstChild.data)+".jpg", image)
-                i=i+1
-            if name.firstChild.data == "robot":
-                color = colors['B']
-                center_x = int((int(xmins[i].firstChild.data) + int(xmaxs[i].firstChild.data)) / 2)
-                center_y = int((int(ymins[i].firstChild.data) + int(ymaxs[i].firstChild.data)) / 2)
-                image = cv2.circle(image, (center_x, center_y), 5, color, -1)
-                cv2.imwrite(os.path.join("C:\\Users\Sarah Khan\Downloads\\data\output", fileName[0].firstChild.data) + ".jpg", image)
-                i = i + 1
-            if name.firstChild.data == "goalpost":
-                color = colors['G']
-                center_x = int((int(xmins[i].firstChild.data) + int(xmaxs[i].firstChild.data)) / 2)
-                center_y = int((int(ymins[i].firstChild.data) + int(ymaxs[i].firstChild.data)) / 2)
-                image = cv2.circle(image, (center_x, center_y), 5, color, -1)
-                cv2.imwrite(os.path.join("C:\\Users\Sarah Khan\Downloads\\data\output", fileName[0].firstChild.data) + ".jpg", image)
-                i = i + 1
-        image = cv2.imread(os.path.join("C:\\Users\Sarah Khan\Downloads\\data\output", fileName[0].firstChild.data) + ".jpg")
-        image = cv2.resize(image,(int(int(width[0].firstChild.data)*25/100),int(int(height[0].firstChild.data)*25/100)), interpolation = cv2.INTER_AREA)
-        cv2.imwrite(os.path.join("C:\\Users\Sarah Khan\Downloads\\data\output", fileName[0].firstChild.data) + ".jpg",
-                    image)
+
