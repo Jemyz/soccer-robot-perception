@@ -267,30 +267,31 @@ def train(lr,batchSize,epochs,tvweightdetection,tvweightsegmentation,saveImages)
 
     det_test_metric /= len(test_loader_detection)
     plot_confusion_matrix(confusiondet,"detection")
+    plot_confusion_matrix(confusiondet,"detection")
     print('Test Detection Overall Accuracy: {}.', np.average(det_test_metric[0]))
     print('Ball Accuracy:', det_test_metric[0][0])
-    print('Goal Accuracy:', det_test_metric[0][1])
-    print('Robot Pillar Accuracy:', det_test_metric[0][2])
+    print('Goal Pillar Accuracy:', det_test_metric[0][1])
+    print('Robot Accuracy:', det_test_metric[0][2])
 
     print('Test Detection Overall Recall: {}.', np.average(det_test_metric[1]))
     print('Ball Recall:', det_test_metric[1][0])
-    print('Goal Recall:', det_test_metric[1][1])
-    print('Robot Pillar Recall:', det_test_metric[1][2])
+    print('Goal Pillar Recall:', det_test_metric[1][1])
+    print('Robot Recall:', det_test_metric[1][2])
 
     print('Test Detection Overall Precision: {}.', np.average(det_test_metric[2]))
     print('Ball Precision:', det_test_metric[2][0])
-    print('Goal Precision:', det_test_metric[2][1])
-    print('Robot Pillar Precision:', det_test_metric[2][2])
+    print('Goal Pillar Precision:', det_test_metric[2][1])
+    print('Robot Precision:', det_test_metric[2][2])
 
     print('Test Detection Overall F1score: {}.', np.average(det_test_metric[3]))
     print('Ball F1score:', det_test_metric[3][0])
-    print('Goal F1score:', det_test_metric[3][1])
-    print('Robot Pillar F1score:', det_test_metric[3][2])
+    print('Goal Pillar F1score:', det_test_metric[3][1])
+    print('Robot F1score:', det_test_metric[3][2])
 
     print('Test Detection Overall False Rate: {}.', np.average(det_test_metric[4]))
     print('Ball False Rate:', det_test_metric[4][0])
-    print('Goal False Rate:', det_test_metric[4][1])
-    print('Robot Pillar False Rate:', det_test_metric[4][2])
+    print('Goal Pillar False Rate:', det_test_metric[4][1])
+    print('Robot False Rate:', det_test_metric[4][2])
 
     accuracies = [0, 0, 0, 0]
     iou = [0, 0, 0, 0]
