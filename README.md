@@ -35,5 +35,5 @@ Packages Required:
 
 
 
-We have used dataprepare.py to divide remove the missing files from dataset as well as create a dataset with representation
+We have used dataprepare.py to remove the missing files from dataset as well as create a dataset with representation
 of variety of inputs in train,test and validate dataset.
