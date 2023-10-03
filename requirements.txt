@@ -1,6 +1,6 @@
 python3 == 3.6.9
 torch == 1.40
-pillow == 7.0.0
+pillow == 10.0.1
 numpy == 1.18.2
 opencv-python == 4.2.0.34
 torchvision == 0.5.0
